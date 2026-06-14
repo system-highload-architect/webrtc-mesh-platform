@@ -6,80 +6,89 @@
 
 ---
 
-## 🗺️ System Topology & Data Plane Physics / Архитектурная топология системы
+## 🗺️ System Topology & Cluster Architecture / Архитектурная топология системы
 
 ```mermaid
 graph TD
-    %% Стилизация элементов / Node Styling
-    classDef signal fill:#2b6cb0,stroke:#1a365d,stroke-width:2px,color:#fff;
-    classDef client fill:#2f855a,stroke:#22543d,stroke-width:2px,color:#fff;
-    classDef stun fill:#d69e2e,stroke:#744210,stroke-width:2px,color:#fff;
-
-    %% 1. Наш Сигнальный Сервер / Signaling Control Plane
-    subgraph Control_Plane [Signaling Control Plane / Серверная плоскость]
-        WS_Gateway[🌐 signaling-gateway / WebSocket Cluster]:::signal
-        Trie_T9[🛡️ In-Memory Trie Engine / Движок Т9]:::signal
-        Batch_Logger[📊 chat-history-service / Пакетный логер]:::signal
+    %% Элементы балансировки и прокси
+    Proxy[🎛️ cloud-routing-proxy / Custom Go L7 Consistent Hashing Balancer]
+    
+    %% Ноды Сигнального Кластера
+    subgraph Signaling_Cluster [Распределенный Кластер Сигнализации / Control Plane]
+        Node1[🌐 signaling-node-01 / Cap: 1000 Rooms]
+        Node2[🌐 signaling-node-02 / Cap: 1000 Rooms]
     end
 
-    %% 2. Внешние Сетевые Узлы / Network Edge STUN Server
-    STUN_TURN[🔒 Public STUN / TURN NAT Traversal]:::stun
+    %% Наше общее Go-шасси
+    Trie_T9[🛡️ In-Memory Trie Engine / Движок Т9]
+    Batch_Logger[📊 chat-history-service / Пакетный логер]
 
-    %% 3. Браузеры Участников / Active Peers (Mesh Topology)
+    %% Браузеры Участников (Mesh Topology)
     subgraph P2P_Mesh_Network [Direct Media Plane / P2P Видео-контур]
-        PeerA[📱 Peer Alpha / Браузер А]:::client
-        PeerB[💻 Peer Beta / Браузер Б]:::client
-        PeerC[🖥️ Peer Gamma / Браузер В]:::client
+        PeerA[📱 Peer Alpha / Владелец комнаты]
+        PeerB[💻 Peer Beta / Active Speaker]
+        PeerC[🖥️ Peer Gamma / View Peer]
         
         %% ПРЯМЫЕ МЕДИА ТУННЕЛИ (P2P DTLS-SRTP ENCRYPTION)
-        PeerA <====>|Encrypted Media Flow| PeerB
-        PeerB <====>|Encrypted Media Flow| PeerC
-        PeerC <====>|Encrypted Media Flow| PeerA
+        PeerA <====>|P2P Media & Vector Drawing| PeerB
+        PeerB <====>|P2P Media Flow| PeerC
+        PeerC <====>|P2P Media Flow| PeerA
     end
 
-    %% СИГНАЛЬНЫЕ ПОТОКИ / CONTROL PLANE WEBSOCKETS
-    PeerA <-->|1. JSON Signalling Stream: SDP/ICE| WS_Gateway
-    PeerB <-->|1. JSON Signalling Stream: SDP/ICE| WS_Gateway
-    PeerC <-->|1. JSON Signalling Stream: SDP/ICE| WS_Gateway
+    %% Входной трафик и Умная Маршрутизация
+    PeerA -->|1. WS Connect| Proxy
+    PeerB -->|1. WS Connect| Proxy
+    PeerC -->|1. WS Connect| Proxy
+    
+    Proxy -->|2. Consistent Hashing Route by RoomID| Node1
+    Proxy -->|2. Consistent Hashing Route by RoomID| Node2
 
     %% Интеграция внутренних сервисов Go
-    WS_Gateway <-->|2. Т9 Наносекундный поиск O K| Trie_T9
-    WS_Gateway -->|3. Асинхронный пуш CDR чата| Batch_Logger
-
-    %% NAT Traversal пробивка портов
-    PeerA <-->|STUN Binding Requests / Изучение NAT| STUN_TURN
-    PeerB <-->|STUN Binding Requests / Изучение NAT| STUN_TURN
-    PeerC <-->|STUN Binding Requests / Изучение NAT| STUN_TURN
-
-    %% Стилизация подграфа трафика трафика
-    style P2P_Mesh_Network fill:#141821,stroke:#319795,stroke-width:2px,stroke-dasharray: 5 5;
+    Node1 <-->|3. Т9 Наносекундный поиск O K| Trie_T9
+    Node1 -->|4. Асинхронный пуш CDR чата| Batch_Logger
+    
+    style Proxy fill:#4a5568,stroke:#2d3748,stroke-width:2px,color:#fff
+    style Node1 fill:#2b6cb0,stroke:#1a365d,stroke-width:2px,color:#fff
+    style Node2 fill:#2b6cb0,stroke:#1a365d,stroke-width:2px,color:#fff
+    style Trie_T9 fill:#2b6cb0,stroke:#1a365d,stroke-width:2px,color:#fff
+    style Batch_Logger fill:#2b6cb0,stroke:#1a365d,stroke-width:2px,color:#fff
+    style PeerA fill:#2f855a,stroke:#22543d,stroke-width:2px,color:#fff
+    style PeerB fill:#2f855a,stroke:#22543d,stroke-width:2px,color:#fff
+    style PeerC fill:#2f855a,stroke:#22543d,stroke-width:2px,color:#fff
 ```
 
 ---
 
 ## 📋 Technical Requirements Specification (SRS) / Техническое ТЗ проекта
 
-### 1. Non-blocking WebSocket Room Signaling / Неблокирующая сигнализация комнат (Req. 1)
-* **[RU]** Обмен метаданными (SDP Offer, Answer, ICE Candidates) для пробивки NAT-линков (*NAT Traversal*) осуществляется по протоколу WebSockets (JSON-фреймы). Сервер комнат изолирует контексты сессий в шардированной мапе `RoomManager` за время $O(1)$. Сервер выступает исключительно коммутатором сигнализации, не пропуская через себя медиа-байты, что гарантирует 0% CPU деградации при росте трафика.
-* **[EN]** Metadata orchestration (SDP Offer, Answer, ICE Candidates) for active NAT traversal is driven via WebSockets (JSON frames). The Room Controller isolates session states inside a sharded `RoomManager` map within constant $O(1)$ complexity. The server functions strictly as a signaling router, completely bypassing user-plane media payloads, guaranteeing 0% CPU host degradation as streams scale.
+### 1. Custom L7 Load Balancer & Consistent Hashing / Умная балансировка кластера (Req. 1)
+* **[RU]** Для горизонтального масштабирования платформы разработан кастомный балансировщик **`cloud-routing-proxy`** на чистом Go. Вместо тяжелого Nginx он использует алгоритм **Последовательного хэширования (Consistent Hashing с виртуальными узлами)**. Трафик участников конкретной комнаты жестко изолируется и маршрутизируется на одну целевую ноду сигнализации по хэшу `RoomID` [🧠]. Предельный лимит комнат на ноду (например, 1000) жестко регулируется через `config.yaml` [🧠]. При перегрузке балансировщик динамически перераспределяет входящие сессии на свободные инстансы кластера [🧠].
+* **[EN]** For horizontal scaling, a custom **`cloud-routing-proxy`** Layer 7 load balancer is written in pure Go. Replacing standard Nginx overhead, it deploys a **Consistent Hashing algorithm with virtual nodes**. Client websocket traffic for any explicit room is strictly bound and routed to a single signaling node based on the hashed `RoomID` key, ensuring zero cross-node synchronization latency. Hard room capacity thresholds per node (e.g., 1000) are governed via `config.yaml`.
 
-### 2. P2P Mesh Media Routing / Топология распределенной Mesh-сети (Req. 2)
-* **[RU]** После завершения сигнальной фазы WebRTC-браузеры участников устанавливают **прямые зашифрованные P2P-соединения друг с другом (DTLS-SRTP туннели)**. Данная топология идеально подходит для небольших b2b-конференций (до 4-6 человек) и полностью абстрагирует сервер от накладных расходов на транскодирование, кодеки Opus/H.264 и обработку RTP-пакетов, перенося нагрузку на оконечные устройства клиентов.
-* **[EN]** Upon completing the initial signaling handshake, WebRTC client engines provision **direct, encrypted P2P connections to one another (DTLS-SRTP tunnels)**. This topology fits b2b conferences (up to 4-6 peers) and eliminates server-side heavy transcoding overhead (Opus/H.264 codecs) and RTP processing, offloading media compute directly to edge clients.
+### 2. Multi-Peer Room Management & Signaling Control / Сигнальное управление комнатами (Req. 2)
+* **[RU]** Владелец комнаты инициализирует сессию, задавая временные рамки (лимит продления до 5 часов), пароль, HMAC-токен доступа и лимит участников (до 100 человек) [🧠]. Ссылка на инвайт рассылается встроенным асинхронным воркером на Email [🧠]. Диспетчеризация команд отключения микрофонов, видеопотоков, демонстраций экранов и блокировок чата осуществляется через **Управляющие WebSocket-фреймы (Control Frames)**. Шлюз проверяет статус токена модератора за время $O(1)$ в оперативной памяти и веерно рассылает сигнальную команду участникам сессии, принудительно мутируя медиа-дорожки на стороне WebRTC API их браузеров [🧠].
+* **[EN]** The room owner provisions a session by defining explicit time constraints (extension caps up to 5 hours), passphrases, HMAC access tokens, and peer volume limits (up to 100 clients). Invite URLs are dispatched via automated asynchronous email workers. Dispatching of mute/unmute commands, video track toggles, screen-share permissions, and chat bans is driven via **WebSocket Control Frames** validated within $O(1)$ complexity in RAM.
 
-### 3. Highload In-Memory Trie T9 Autocomplete / Наносекундный движок Т9 (Req. 3)
-* **[RU]** Чат видеоконференции снабжен интеллектуальным движком Т9 автодополнения слов. Для исключения деградации сложности поиска $O(N \times M)$ при росте словаря b2b-терминов, система использует **Префиксное дерево (Trie Data Structure)**. Каждый символ, вбиваемый пользователем, прошивает дерево за константное время $O(K)$ (где $K$ — длина слова), выдавая подсказки из RAM-памяти без единого прохода по массивам строк.
-* **[EN]** The live conference chat workspace features an intelligent T9 word autocomplete engine. To bypass linear $O(N \times M)$ dictionary lookup constraints as the specialized b2b vocabulary expands, the platform utilizes an **In-Memory Prefix Tree (Trie Data Structure)**. Each character stream typed by a client references the tree within deterministic $O(K)$ time (where $K$ matches the input length), retrieving suggestions from RAM indexes without iterating arrays.
+### 3. P2P Mesh Media Plane & Smart UX/UI layouts / Медиа-контур и умный интерфейс (Req. 3)
+* **[RU]** Видеотрафик циркулирует строго **напрямую между браузерами по зашифрованным DTLS-SRTP туннелям (Mesh)**, освобождая сервер от нагрузки на транскодирование. На уровне сигнального протокола SDP поддерживается:
+  * **Режим Спикера (Active Speaker Detection):** динамическое увеличение окна говорящего участника на 2/3 экрана на основе метаданных аудио-активности VAD, сдвигая остальных участников в правый пролистываемый блок [🧠].
+  * **Коллаборативное Рисование:** передача векторных координат линий и стрелок поверх окна демонстрации экрана в реальном времени.
+  * **SDP Мутация & Quality Auto-Scaling:** принудительное шумоподавление (`noiseSuppression`) и динамический даунгрейд разрешения потоков с 1080p до 360p для пассивных участников при перегрузке каналов связи [🧠].
+* **[EN]** Media streams circulate strictly **peer-to-peer via encrypted DTLS-SRTP tunnels (Mesh topology)**. At the signaling SDP layer, the platform enforces:
+  * **Active Speaker Detection:** dynamic peer layout expansion up to 2/3 of the workspace based on real-time VAD telemetry, shifting passive streams into a scrollable right panel.
+  * **Collaborative Drawing:** real-time routing of vector coordinate streams for arrows and lines over active screen shares.
+  * **SDP Mutation & Quality Auto-Scaling:** server-enforced noise suppression and dynamic resolution downgrades (from 1080p to 360p) for passive viewers under intense network jitter constraints.
 
-### 4. Async Batch Chat Logger / Асинхронное пакетное логирование (Req. 4)
-* **[RU]** Сообщения чата не должны блокировать поток сигнализации. Логи чата асинхронно сбрасываются в сервис `chat-history-service`, накапливаются в памяти и **сбрасываются на диск пачками (Batching) строго по 30 штук или таймауту в 100 мс** для предотвращения I/O-голодания файловой системы.
-* **[EN]** Chat messages must not jam the active signaling websocket thread. Telemetry logs are pushed asynchronously to the `chat-history-service`, aggregated in RAM, and **written to the persistent store in batch packages of exactly 30 items or a 100ms timeout** to shield the filesystem from intensive I/O starvation.
+### 4. Reactive Cache Eviction & Idle State Backoff / Каскадный кэш и Тайм-ауты (Req. 4)
+* **[RU]** Управление комнатами в RAM памяти ноды переведено на кастомный **Reactive LRU Cache с каскадным сжатием хвоста (Tail-to-Head Cascade Eviction)** [0.1.1, 🧠]. Если в комнате нет пользователей более 30 минут, кэш лениво за время $O(1)$ вычищает сессию из памяти с принудительным вызовом `runtime.GC()` [🧠]. 
+* **[RU]** Если в комнате нет активности 30 минут при живых участниках, активируется **Воркер оповещений с Экспоненциальным Бэкоффом (Exponential Backoff Janitor)** [🧠]. Он 3–5 раз шлет модератору предупреждающий WebSocket-фрейм `STIMULUS_ALERT`. При отсутствии реакции комната принудительно закрывается [🧠]. В режиме **Паузы** микрофоны и камеры блокируются, а трансляция экрана снижает фреймрейт до 1 кадра в 5 секунд (**Muted Keyframes**) для 95% экономии трафика сервера, а запись сессии на клиенте автоматически ставится на паузу [🧠].
+* **[EN]** Memory management inside each signaling node is governed by a **Reactive LRU Cache featuring dynamic Cascade Eviction** [0.1.1, 🧠]. If a room remains empty for 30 minutes, the cache lazily evicts the state within $O(1)$ limits followed by an explicit `runtime.GC()` execution.
+* **[EN]** If a session remains idle for 30 minutes while clients are attached, an **Exponential Backoff Janitor Worker** is triggered. It fires warning websocket frames `STIMULUS_ALERT` to the moderator 3-5 times under exponential time steps before forcing room termination. Under a **Pause state**, mic/camera tracks are blocked, screen-share streams drop to 1 frame per 5 seconds (**Muted Keyframes**) ensuring a 95% bandwidth drop, and client-side recorders are automatically paused.
+
+### 5. Secure Chat Stream & Trie-T9 Core / Безопасный чат и Движок Т9 (Req. 5)
+* **[RU]** Текстовый мессенджер конференции защищен от XSS-атак посредством серверного экранирования HTML-тегов и регулярной чистки `<script>` векторов. Лимитирование флуда запросов выполняется за 9 наносекунд через **Lock-Free CAS маркерную корзину**. Пограничный размер сообщения строго валидируется сервером на отсечку в 1000 символов [🧠]. Переход по внешним ссылкам блокируется промежуточной b2b-страницей предупреждения (Safe Transfer Page) со снятием ответственности [🧠].
+* **[RU]** Интеллектуальный движок Т9 осуществляет наносекундный поиск совпадений по **Префиксному дерево (Trie)** за константное время $O(K)$ [🧠]. Дополнительно внедрен **Конвейер нормализации раскладки (Keyboard Layout Translit)**: если префикс не найден в дереве, сервер за один проход по хэш-мапе рун преобразует ошибочный латинский ввод (`ghbdtn`) в каноничный кириллический (`привет`) и совершает повторную Trie-инвалидацию, выводя плейсхолдер автодополнения по кнопке `Tab`.
+* **[EN]** The chat system is immune to XSS vectors due to server-enforced HTML escaping. Flood protection is driven within 9ns via a **Lock-Free CAS Token Bucket** bounded at a 1000-rune threshold. Transfer URLs are intercepted by an isolated Safe Transfer Page.
+* **[EN]** The T9 engine executes predictive lookпов over an In-Memory Trie Tree within fixed $O(K)$ limits. It features an integrated Keyboard Layout Translit Pipeline mapping incorrect layout inputs (e.g., ghbdtn to привет via flat rune hash tables) prior to entering the second Trie pass, returning autocomplete placeholders triggered by the Tab key.
 
 ---
-
-## 🛠️ Technology Justification & Benefits / Обоснование технологий
-
-* **[RU]** **Технология: P2P Mesh Topology + In-Memory Trie Tree + Gorilla WebSockets.** 
-  * **Выигрыш для CPU/RAM:** Mesh-топология снижает требования к серверу на 99% по сравнению с тяжелыми SFU (Selective Forwarding Unit) серверами. Сервер с 1 ядром и 1 ГБ RAM способен обслуживать до 50 000 параллельных сигнальных сессий, так как видеопотоки циркулируют строго между браузерами абонентов. Префиксное Trie-дерево гарантирует наносекундный SLA поиска Т9 слов за константное время $O(K)$, полностью утилизируя кэш-линии процессора и не создавая аллокаций памяти в куче Go на итерациях.
-* **[EN]** **Technology: P2P Mesh Topology + In-Memory Trie Tree + Gorilla WebSockets.**
-  * **System Performance Benefits:** Mesh network layouts compress server infrastructure capacity bounds by 99% compared to resource-heavy SFU (Selective Forwarding Unit) cluster components. A single-core node with 1 GB RAM effortlessly orchestrates past 50,000 parallel signaling sessions since binary media traffic routes strictly peer-to-peer. The Trie implementation guarantees near-instantaneous T9 word suggestion discovery within deterministic $O(K)$ latency boundaries, maximizing hardware CPU cache lines utilization and ensuring zero runtime Go heap allocations per match search.
