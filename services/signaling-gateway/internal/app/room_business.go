@@ -11,17 +11,15 @@ import (
 	"webrtc-mesh-platform/services/signaling-gateway/internal/domain"
 )
 
-// CreateRoom инициализирует комнату за O(1) и генерирует HMAC-SHA256 токен для защиты от CSRF (Req. 5)
+// CreateRoom инициализирует комнату за O(1) и регистрирует её в наносекундном LRU-кэше (Req. 5)
 func (s *SignalingService) CreateRoom(ctx context.Context, roomID string, maxPeers int32) (string, error) {
 	idx := s.getShardIndex(roomID)
 	shard := s.shards[idx]
 
-	// Жестко локально лочим только один шард для обхода Mutex Contention
 	shard.mu.Lock()
 	defer shard.mu.Unlock()
 
-	// Инициализируем стейт комнаты в RAM
-	shard.rooms[roomID] = &domain.VideoRoom{
+	room := &domain.VideoRoom{
 		RoomID:    roomID,
 		MaxPeers:  maxPeers,
 		IsPaused:  false,
@@ -29,12 +27,14 @@ func (s *SignalingService) CreateRoom(ctx context.Context, roomID string, maxPee
 		CreatedAt: time.Now(),
 	}
 
-	// Если пула коннекшенов для этой комнаты еще нет — аллоцируем память
+	shard.rooms[roomID] = room
 	if _, exists := shard.conns[roomID]; !exists {
 		shard.conns[roomID] = make(map[string]*PeerConnection)
 	}
 
-	// ПАТТЕРН БЕЗОПАСНОСТИ (Req. 5): Генерация криптографического HMAC-SHA256 инвайт-токена
+	// Фиксируем комнату в структуре LRU-кэша. Если лимит в 1000 превышен — старый хвост атомарно вытеснится
+	shard.lruCache.Set(roomID, room)
+
 	mac := hmac.New(sha256.New, s.hmacSecret)
 	mac.Write([]byte(roomID + fmt.Sprintf("%d", time.Now().UnixNano())))
 	token := hex.EncodeToString(mac.Sum(nil))
