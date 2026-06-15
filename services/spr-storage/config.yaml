@@ -1,4 +1,4 @@
 service_name: "webrtc-spr-storage"
 log_level: "info"
-bind_addr: ":50060"                 # Выделенный порт ScyllaDB (SPR) эмулятора
-shutdown_timeout: 5
+bind_addr: ":50060"               # Выделенный gRPC-порт ScyllaDB (SPR) реплики
+shutdown_timeout: 5              # Таймаут плавного сброса при SIGTERM
