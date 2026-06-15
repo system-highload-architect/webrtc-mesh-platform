@@ -1,0 +1,4 @@
+service_name: "webrtc-chat-history-service"
+log_level: "info"
+bind_addr: ":50057"       # Выделенный порт аналитического чат-слоя
+shutdown_timeout: 5      # Таймаут плавного сброса кэша на диск при SIGTERM
