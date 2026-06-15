@@ -1,0 +1,4 @@
+service_name: "webrtc-spr-storage"
+log_level: "info"
+bind_addr: ":50060"                 # Выделенный порт ScyllaDB (SPR) эмулятора
+shutdown_timeout: 5

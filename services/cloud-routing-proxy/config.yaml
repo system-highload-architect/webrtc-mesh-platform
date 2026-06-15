@@ -1,0 +1,7 @@
+service_name: "webrtc-cloud-routing-proxy"
+log_level: "info"
+bind_addr: ":8080"                 # Входной порт балансировщика для клиентов
+shutdown_timeout: 5
+signaling_nodes:                   # Список нод сигнального кластера в Кубере
+  - "localhost:8081"
+  - "localhost:8082"
