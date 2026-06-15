@@ -9,6 +9,7 @@ package gen
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -24,9 +25,10 @@ const (
 type RoomConfigRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	RoomId          string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	PassPhrase      string                 `protobuf:"bytes,2,opt,name=pass_phrase,json=passPhrase,proto3" json:"pass_phrase,omitempty"`
-	MaxSubscribers  int32                  `protobuf:"varint,3,opt,name=max_subscribers,json=maxSubscribers,proto3" json:"max_subscribers,omitempty"`
-	DurationSeconds int64                  `protobuf:"varint,4,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
+	PassPhraseHash  string                 `protobuf:"bytes,2,opt,name=pass_phrase_hash,json=passPhraseHash,proto3" json:"pass_phrase_hash,omitempty"`   // SHA256 хэш пароля для входа
+	MaxSubscribers  int32                  `protobuf:"varint,3,opt,name=max_subscribers,json=maxSubscribers,proto3" json:"max_subscribers,omitempty"`    // Лимит участников (до 100 человек по ТЗ)
+	DurationSeconds int64                  `protobuf:"varint,4,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"` // Исходно заданное время конференции
+	InviteEmails    []string               `protobuf:"bytes,5,rep,name=invite_emails,json=inviteEmails,proto3" json:"invite_emails,omitempty"`           // Список сотрудников для асинхронной Email рассылки
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -68,9 +70,9 @@ func (x *RoomConfigRequest) GetRoomId() string {
 	return ""
 }
 
-func (x *RoomConfigRequest) GetPassPhrase() string {
+func (x *RoomConfigRequest) GetPassPhraseHash() string {
 	if x != nil {
-		return x.PassPhrase
+		return x.PassPhraseHash
 	}
 	return ""
 }
@@ -89,11 +91,18 @@ func (x *RoomConfigRequest) GetDurationSeconds() int64 {
 	return 0
 }
 
+func (x *RoomConfigRequest) GetInviteEmails() []string {
+	if x != nil {
+		return x.InviteEmails
+	}
+	return nil
+}
+
 type RoomConfigResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	IsProvisioned   bool                   `protobuf:"varint,1,opt,name=is_provisioned,json=isProvisioned,proto3" json:"is_provisioned,omitempty"`
-	HmacAccessToken string                 `protobuf:"bytes,2,opt,name=hmac_access_token,json=hmacAccessToken,proto3" json:"hmac_access_token,omitempty"`
-	StatusCode      uint32                 `protobuf:"varint,3,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"` // 2001 - Success
+	HmacAccessToken string                 `protobuf:"bytes,2,opt,name=hmac_access_token,json=hmacAccessToken,proto3" json:"hmac_access_token,omitempty"` // HMAC-SHA256 CSRF защищенный токен инвайта
+	StatusCode      uint32                 `protobuf:"varint,3,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`                 // 2001 - Success
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -149,29 +158,30 @@ func (x *RoomConfigResponse) GetStatusCode() uint32 {
 	return 0
 }
 
-type PeerAuthRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	PeerId        string                 `protobuf:"bytes,2,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
-	AccessToken   string                 `protobuf:"bytes,3,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type UpdateLimitsRequest struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	RoomId                string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	OperatorPeerId        string                 `protobuf:"bytes,2,opt,name=operator_peer_id,json=operatorPeerId,proto3" json:"operator_peer_id,omitempty"`
+	ExtendDurationSeconds int64                  `protobuf:"varint,3,opt,name=extend_duration_seconds,json=extendDurationSeconds,proto3" json:"extend_duration_seconds,omitempty"` // Продление сессии (лимит до 5 часов суммарно)
+	IncrementMaxPeers     int32                  `protobuf:"varint,4,opt,name=increment_max_peers,json=incrementMaxPeers,proto3" json:"increment_max_peers,omitempty"`             // Увеличение лимита участников до 100 человек
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
-func (x *PeerAuthRequest) Reset() {
-	*x = PeerAuthRequest{}
+func (x *UpdateLimitsRequest) Reset() {
+	*x = UpdateLimitsRequest{}
 	mi := &file_pb_signaling_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PeerAuthRequest) String() string {
+func (x *UpdateLimitsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PeerAuthRequest) ProtoMessage() {}
+func (*UpdateLimitsRequest) ProtoMessage() {}
 
-func (x *PeerAuthRequest) ProtoReflect() protoreflect.Message {
+func (x *UpdateLimitsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pb_signaling_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -183,54 +193,61 @@ func (x *PeerAuthRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PeerAuthRequest.ProtoReflect.Descriptor instead.
-func (*PeerAuthRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateLimitsRequest.ProtoReflect.Descriptor instead.
+func (*UpdateLimitsRequest) Descriptor() ([]byte, []int) {
 	return file_pb_signaling_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *PeerAuthRequest) GetRoomId() string {
+func (x *UpdateLimitsRequest) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
 	return ""
 }
 
-func (x *PeerAuthRequest) GetPeerId() string {
+func (x *UpdateLimitsRequest) GetOperatorPeerId() string {
 	if x != nil {
-		return x.PeerId
+		return x.OperatorPeerId
 	}
 	return ""
 }
 
-func (x *PeerAuthRequest) GetAccessToken() string {
+func (x *UpdateLimitsRequest) GetExtendDurationSeconds() int64 {
 	if x != nil {
-		return x.AccessToken
+		return x.ExtendDurationSeconds
 	}
-	return ""
+	return 0
 }
 
-type PeerAuthResponse struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	IsAllowed          bool                   `protobuf:"varint,1,opt,name=is_allowed,json=isAllowed,proto3" json:"is_allowed,omitempty"`
-	AllocatedIceServer string                 `protobuf:"bytes,2,opt,name=allocated_ice_server,json=allocatedIceServer,proto3" json:"allocated_ice_server,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+func (x *UpdateLimitsRequest) GetIncrementMaxPeers() int32 {
+	if x != nil {
+		return x.IncrementMaxPeers
+	}
+	return 0
 }
 
-func (x *PeerAuthResponse) Reset() {
-	*x = PeerAuthResponse{}
+type UpdateLimitsResponse struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	IsUpdated               bool                   `protobuf:"varint,1,opt,name=is_updated,json=isUpdated,proto3" json:"is_updated,omitempty"`
+	CurrentRemainingSeconds int64                  `protobuf:"varint,2,opt,name=current_remaining_seconds,json=currentRemainingSeconds,proto3" json:"current_remaining_seconds,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *UpdateLimitsResponse) Reset() {
+	*x = UpdateLimitsResponse{}
 	mi := &file_pb_signaling_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PeerAuthResponse) String() string {
+func (x *UpdateLimitsResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PeerAuthResponse) ProtoMessage() {}
+func (*UpdateLimitsResponse) ProtoMessage() {}
 
-func (x *PeerAuthResponse) ProtoReflect() protoreflect.Message {
+func (x *UpdateLimitsResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_pb_signaling_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -242,33 +259,34 @@ func (x *PeerAuthResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PeerAuthResponse.ProtoReflect.Descriptor instead.
-func (*PeerAuthResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateLimitsResponse.ProtoReflect.Descriptor instead.
+func (*UpdateLimitsResponse) Descriptor() ([]byte, []int) {
 	return file_pb_signaling_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *PeerAuthResponse) GetIsAllowed() bool {
+func (x *UpdateLimitsResponse) GetIsUpdated() bool {
 	if x != nil {
-		return x.IsAllowed
+		return x.IsUpdated
 	}
 	return false
 }
 
-func (x *PeerAuthResponse) GetAllocatedIceServer() string {
+func (x *UpdateLimitsResponse) GetCurrentRemainingSeconds() int64 {
 	if x != nil {
-		return x.AllocatedIceServer
+		return x.CurrentRemainingSeconds
 	}
-	return ""
+	return 0
 }
 
 type ControlFramePayload struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	RoomId         string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	OperatorPeerId string                 `protobuf:"bytes,2,opt,name=operator_peer_id,json=operatorPeerId,proto3" json:"operator_peer_id,omitempty"` // ID модератора
-	TargetPeerId   string                 `protobuf:"bytes,3,opt,name=target_peer_id,json=targetPeerId,proto3" json:"target_peer_id,omitempty"`       // Жертва (кого глушим или баним)
-	CommandType    string                 `protobuf:"bytes,4,opt,name=command_type,json=commandType,proto3" json:"command_type,omitempty"`            // "MUTE_AUDIO", "STOP_VIDEO", "KICK"
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	RoomId               string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	OperatorPeerId       string                 `protobuf:"bytes,2,opt,name=operator_peer_id,json=operatorPeerId,proto3" json:"operator_peer_id,omitempty"`                    // ID модератора для проверки b2b прав в RAM за O(1)
+	TargetPeerId         string                 `protobuf:"bytes,3,opt,name=target_peer_id,json=targetPeerId,proto3" json:"target_peer_id,omitempty"`                          // ID участника-цели (жертвы модерации)
+	CommandType          string                 `protobuf:"bytes,4,opt,name=command_type,json=commandType,proto3" json:"command_type,omitempty"`                               // "MUTE_AUDIO", "STOP_VIDEO", "SET_PAUSE", "UNPAUSE", "KICK_PEER"
+	PauseDurationSeconds int64                  `protobuf:"varint,5,opt,name=pause_duration_seconds,json=pauseDurationSeconds,proto3" json:"pause_duration_seconds,omitempty"` // Время перерыва, если команда "SET_PAUSE"
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ControlFramePayload) Reset() {
@@ -329,6 +347,13 @@ func (x *ControlFramePayload) GetCommandType() string {
 	return ""
 }
 
+func (x *ControlFramePayload) GetPauseDurationSeconds() int64 {
+	if x != nil {
+		return x.PauseDurationSeconds
+	}
+	return 0
+}
+
 type ControlFrameAck struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	IsDispatched  bool                   `protobuf:"varint,1,opt,name=is_dispatched,json=isDispatched,proto3" json:"is_dispatched,omitempty"`
@@ -377,7 +402,7 @@ type ChatMessagePayload struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	SenderId      string                 `protobuf:"bytes,2,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
-	MessageText   string                 `protobuf:"bytes,3,opt,name=message_text,json=messageText,proto3" json:"message_text,omitempty"`
+	MessageText   string                 `protobuf:"bytes,3,opt,name=message_text,json=messageText,proto3" json:"message_text,omitempty"` // Сырой текст, проходящий валидацию лимита в 1000 символов
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -436,8 +461,9 @@ func (x *ChatMessagePayload) GetMessageText() string {
 type ChatMessageAck struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	MessageId     string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	SanitizedText string                 `protobuf:"bytes,2,opt,name=sanitized_text,json=sanitizedText,proto3" json:"sanitized_text,omitempty"`
-	ContainsUrl   bool                   `protobuf:"varint,3,opt,name=contains_url,json=containsUrl,proto3" json:"contains_url,omitempty"`
+	SanitizedText string                 `protobuf:"bytes,2,opt,name=sanitized_text,json=sanitizedText,proto3" json:"sanitized_text,omitempty"` // Текст после серверной очистки от XSS и обертки ссылок
+	ContainsUrl   bool                   `protobuf:"varint,3,opt,name=contains_url,json=containsUrl,proto3" json:"contains_url,omitempty"`      // Флаг для фронтенда для активации Safe Transfer Page
+	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -493,9 +519,16 @@ func (x *ChatMessageAck) GetContainsUrl() bool {
 	return false
 }
 
+func (x *ChatMessageAck) GetTimestamp() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Timestamp
+	}
+	return nil
+}
+
 type T9QueryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Prefix        string                 `protobuf:"bytes,1,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	Prefix        string                 `protobuf:"bytes,1,opt,name=prefix,proto3" json:"prefix,omitempty"` // Префикс для прохода по Trie-дереву (например, 'ghb')
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -539,7 +572,7 @@ func (x *T9QueryRequest) GetPrefix() string {
 
 type T9QueryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Suggestion    string                 `protobuf:"bytes,1,opt,name=suggestion,proto3" json:"suggestion,omitempty"`
+	Suggestion    string                 `protobuf:"bytes,1,opt,name=suggestion,proto3" json:"suggestion,omitempty"` // Подсказка автодополнения (например, 'привет')
 	IsFound       bool                   `protobuf:"varint,2,opt,name=is_found,json=isFound,proto3" json:"is_found,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -593,52 +626,55 @@ var File_pb_signaling_proto protoreflect.FileDescriptor
 
 const file_pb_signaling_proto_rawDesc = "" +
 	"\n" +
-	"\x12pb/signaling.proto\x12\x02pb\"\xa1\x01\n" +
+	"\x12pb/signaling.proto\x12\x02pb\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcf\x01\n" +
 	"\x11RoomConfigRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1f\n" +
-	"\vpass_phrase\x18\x02 \x01(\tR\n" +
-	"passPhrase\x12'\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
+	"\x10pass_phrase_hash\x18\x02 \x01(\tR\x0epassPhraseHash\x12'\n" +
 	"\x0fmax_subscribers\x18\x03 \x01(\x05R\x0emaxSubscribers\x12)\n" +
-	"\x10duration_seconds\x18\x04 \x01(\x03R\x0fdurationSeconds\"\x88\x01\n" +
+	"\x10duration_seconds\x18\x04 \x01(\x03R\x0fdurationSeconds\x12#\n" +
+	"\rinvite_emails\x18\x05 \x03(\tR\finviteEmails\"\x88\x01\n" +
 	"\x12RoomConfigResponse\x12%\n" +
 	"\x0eis_provisioned\x18\x01 \x01(\bR\risProvisioned\x12*\n" +
 	"\x11hmac_access_token\x18\x02 \x01(\tR\x0fhmacAccessToken\x12\x1f\n" +
 	"\vstatus_code\x18\x03 \x01(\rR\n" +
-	"statusCode\"f\n" +
-	"\x0fPeerAuthRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
-	"\apeer_id\x18\x02 \x01(\tR\x06peerId\x12!\n" +
-	"\faccess_token\x18\x03 \x01(\tR\vaccessToken\"c\n" +
-	"\x10PeerAuthResponse\x12\x1d\n" +
+	"statusCode\"\xc0\x01\n" +
+	"\x13UpdateLimitsRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
+	"\x10operator_peer_id\x18\x02 \x01(\tR\x0eoperatorPeerId\x126\n" +
+	"\x17extend_duration_seconds\x18\x03 \x01(\x03R\x15extendDurationSeconds\x12.\n" +
+	"\x13increment_max_peers\x18\x04 \x01(\x05R\x11incrementMaxPeers\"q\n" +
+	"\x14UpdateLimitsResponse\x12\x1d\n" +
 	"\n" +
-	"is_allowed\x18\x01 \x01(\bR\tisAllowed\x120\n" +
-	"\x14allocated_ice_server\x18\x02 \x01(\tR\x12allocatedIceServer\"\xa1\x01\n" +
+	"is_updated\x18\x01 \x01(\bR\tisUpdated\x12:\n" +
+	"\x19current_remaining_seconds\x18\x02 \x01(\x03R\x17currentRemainingSeconds\"\xd7\x01\n" +
 	"\x13ControlFramePayload\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
 	"\x10operator_peer_id\x18\x02 \x01(\tR\x0eoperatorPeerId\x12$\n" +
 	"\x0etarget_peer_id\x18\x03 \x01(\tR\ftargetPeerId\x12!\n" +
-	"\fcommand_type\x18\x04 \x01(\tR\vcommandType\"6\n" +
+	"\fcommand_type\x18\x04 \x01(\tR\vcommandType\x124\n" +
+	"\x16pause_duration_seconds\x18\x05 \x01(\x03R\x14pauseDurationSeconds\"6\n" +
 	"\x0fControlFrameAck\x12#\n" +
 	"\ris_dispatched\x18\x01 \x01(\bR\fisDispatched\"m\n" +
 	"\x12ChatMessagePayload\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1b\n" +
 	"\tsender_id\x18\x02 \x01(\tR\bsenderId\x12!\n" +
-	"\fmessage_text\x18\x03 \x01(\tR\vmessageText\"y\n" +
+	"\fmessage_text\x18\x03 \x01(\tR\vmessageText\"\xb3\x01\n" +
 	"\x0eChatMessageAck\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12%\n" +
 	"\x0esanitized_text\x18\x02 \x01(\tR\rsanitizedText\x12!\n" +
-	"\fcontains_url\x18\x03 \x01(\bR\vcontainsUrl\"(\n" +
+	"\fcontains_url\x18\x03 \x01(\bR\vcontainsUrl\x128\n" +
+	"\ttimestamp\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"(\n" +
 	"\x0eT9QueryRequest\x12\x16\n" +
 	"\x06prefix\x18\x01 \x01(\tR\x06prefix\"L\n" +
 	"\x0fT9QueryResponse\x12\x1e\n" +
 	"\n" +
 	"suggestion\x18\x01 \x01(\tR\n" +
 	"suggestion\x12\x19\n" +
-	"\bis_found\x18\x02 \x01(\bR\aisFound2\xe3\x01\n" +
+	"\bis_found\x18\x02 \x01(\bR\aisFound2\xeb\x01\n" +
 	"\x14MediaSignalingBridge\x12E\n" +
-	"\x14CreateConferenceRoom\x12\x15.pb.RoomConfigRequest\x1a\x16.pb.RoomConfigResponse\x12=\n" +
-	"\x10AuthenticatePeer\x12\x13.pb.PeerAuthRequest\x1a\x14.pb.PeerAuthResponse\x12E\n" +
+	"\x14CreateConferenceRoom\x12\x15.pb.RoomConfigRequest\x1a\x16.pb.RoomConfigResponse\x12E\n" +
+	"\x10UpdateRoomLimits\x12\x17.pb.UpdateLimitsRequest\x1a\x18.pb.UpdateLimitsResponse\x12E\n" +
 	"\x15BroadcastControlFrame\x12\x17.pb.ControlFramePayload\x1a\x13.pb.ControlFrameAck2\x94\x01\n" +
 	"\x11ChatHistoryBridge\x12?\n" +
 	"\x11IngestChatMessage\x12\x16.pb.ChatMessagePayload\x1a\x12.pb.ChatMessageAck\x12>\n" +
@@ -658,33 +694,35 @@ func file_pb_signaling_proto_rawDescGZIP() []byte {
 
 var file_pb_signaling_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_pb_signaling_proto_goTypes = []any{
-	(*RoomConfigRequest)(nil),   // 0: pb.RoomConfigRequest
-	(*RoomConfigResponse)(nil),  // 1: pb.RoomConfigResponse
-	(*PeerAuthRequest)(nil),     // 2: pb.PeerAuthRequest
-	(*PeerAuthResponse)(nil),    // 3: pb.PeerAuthResponse
-	(*ControlFramePayload)(nil), // 4: pb.ControlFramePayload
-	(*ControlFrameAck)(nil),     // 5: pb.ControlFrameAck
-	(*ChatMessagePayload)(nil),  // 6: pb.ChatMessagePayload
-	(*ChatMessageAck)(nil),      // 7: pb.ChatMessageAck
-	(*T9QueryRequest)(nil),      // 8: pb.T9QueryRequest
-	(*T9QueryResponse)(nil),     // 9: pb.T9QueryResponse
+	(*RoomConfigRequest)(nil),     // 0: pb.RoomConfigRequest
+	(*RoomConfigResponse)(nil),    // 1: pb.RoomConfigResponse
+	(*UpdateLimitsRequest)(nil),   // 2: pb.UpdateLimitsRequest
+	(*UpdateLimitsResponse)(nil),  // 3: pb.UpdateLimitsResponse
+	(*ControlFramePayload)(nil),   // 4: pb.ControlFramePayload
+	(*ControlFrameAck)(nil),       // 5: pb.ControlFrameAck
+	(*ChatMessagePayload)(nil),    // 6: pb.ChatMessagePayload
+	(*ChatMessageAck)(nil),        // 7: pb.ChatMessageAck
+	(*T9QueryRequest)(nil),        // 8: pb.T9QueryRequest
+	(*T9QueryResponse)(nil),       // 9: pb.T9QueryResponse
+	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
 }
 var file_pb_signaling_proto_depIdxs = []int32{
-	0, // 0: pb.MediaSignalingBridge.CreateConferenceRoom:input_type -> pb.RoomConfigRequest
-	2, // 1: pb.MediaSignalingBridge.AuthenticatePeer:input_type -> pb.PeerAuthRequest
-	4, // 2: pb.MediaSignalingBridge.BroadcastControlFrame:input_type -> pb.ControlFramePayload
-	6, // 3: pb.ChatHistoryBridge.IngestChatMessage:input_type -> pb.ChatMessagePayload
-	8, // 4: pb.ChatHistoryBridge.QueryT9Autocomplete:input_type -> pb.T9QueryRequest
-	1, // 5: pb.MediaSignalingBridge.CreateConferenceRoom:output_type -> pb.RoomConfigResponse
-	3, // 6: pb.MediaSignalingBridge.AuthenticatePeer:output_type -> pb.PeerAuthResponse
-	5, // 7: pb.MediaSignalingBridge.BroadcastControlFrame:output_type -> pb.ControlFrameAck
-	7, // 8: pb.ChatHistoryBridge.IngestChatMessage:output_type -> pb.ChatMessageAck
-	9, // 9: pb.ChatHistoryBridge.QueryT9Autocomplete:output_type -> pb.T9QueryResponse
-	5, // [5:10] is the sub-list for method output_type
-	0, // [0:5] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	10, // 0: pb.ChatMessageAck.timestamp:type_name -> google.protobuf.Timestamp
+	0,  // 1: pb.MediaSignalingBridge.CreateConferenceRoom:input_type -> pb.RoomConfigRequest
+	2,  // 2: pb.MediaSignalingBridge.UpdateRoomLimits:input_type -> pb.UpdateLimitsRequest
+	4,  // 3: pb.MediaSignalingBridge.BroadcastControlFrame:input_type -> pb.ControlFramePayload
+	6,  // 4: pb.ChatHistoryBridge.IngestChatMessage:input_type -> pb.ChatMessagePayload
+	8,  // 5: pb.ChatHistoryBridge.QueryT9Autocomplete:input_type -> pb.T9QueryRequest
+	1,  // 6: pb.MediaSignalingBridge.CreateConferenceRoom:output_type -> pb.RoomConfigResponse
+	3,  // 7: pb.MediaSignalingBridge.UpdateRoomLimits:output_type -> pb.UpdateLimitsResponse
+	5,  // 8: pb.MediaSignalingBridge.BroadcastControlFrame:output_type -> pb.ControlFrameAck
+	7,  // 9: pb.ChatHistoryBridge.IngestChatMessage:output_type -> pb.ChatMessageAck
+	9,  // 10: pb.ChatHistoryBridge.QueryT9Autocomplete:output_type -> pb.T9QueryResponse
+	6,  // [6:11] is the sub-list for method output_type
+	1,  // [1:6] is the sub-list for method input_type
+	1,  // [1:1] is the sub-list for extension type_name
+	1,  // [1:1] is the sub-list for extension extendee
+	0,  // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_pb_signaling_proto_init() }

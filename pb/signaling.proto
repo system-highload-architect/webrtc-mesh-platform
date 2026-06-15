@@ -4,80 +4,89 @@ package pb;
 
 option go_package = "webrtc-mesh-platform/pb/gen;gen";
 
+import "google/protobuf/timestamp.proto";
+
 // MediaSignalingBridge управляет Control Plane плоскостью WebRTC Mesh комнат
 service MediaSignalingBridge {
-    // Инициализировать комнату конференции модератором
+    // Инициализировать комнату конференции модератором (Часть 3)
     rpc CreateConferenceRoom(RoomConfigRequest) returns (RoomConfigResponse);
     
-    // Валидация HMAC-токена и пароля при входе участника
-    rpc AuthenticatePeer(PeerAuthRequest) returns (PeerAuthResponse);
+    // Продлить время жизни сессии или увеличить лимит участников (Часть 3)
+    rpc UpdateRoomLimits(UpdateLimitsRequest) returns (UpdateLimitsResponse);
     
-    // Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban)
+    // Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban, Pause) (Часть 1 & 3)
     rpc BroadcastControlFrame(ControlFramePayload) returns (ControlFrameAck);
 }
 
+// ChatHistoryBridge полностью изолирует асинхронный аналитический слой чата (Часть 2)
+service ChatHistoryBridge {
+    // Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь (Часть 2)
+    rpc IngestChatMessage(ChatMessagePayload) returns (ChatMessageAck);
+    
+    // Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K) (Часть 2)
+    rpc QueryT9Autocomplete(T9QueryRequest) returns (T9QueryResponse);
+}
+
+// --- СТРУКТУРЫ ДАННЫХ КОНТРОЛЛЕРА КОМНАТ (ROOM MANAGEMENT) ---
+
 message RoomConfigRequest {
     string room_id = 1;
-    string pass_phrase = 2;
-    int32 max_subscribers = 3;
-    int64 duration_seconds = 4;
+    string pass_phrase_hash = 2; // SHA256 хэш пароля для входа
+    int32 max_subscribers = 3;   // Лимит участников (до 100 человек по ТЗ)
+    int64 duration_seconds = 4;  // Исходно заданное время конференции
+    repeated string invite_emails = 5; // Список сотрудников для асинхронной Email рассылки
 }
 
 message RoomConfigResponse {
     bool is_provisioned = 1;
-    string hmac_access_token = 2;
-    uint32 status_code = 3; // 2001 - Success
+    string hmac_access_token = 2; // HMAC-SHA256 CSRF защищенный токен инвайта
+    uint32 status_code = 3;        // 2001 - Success
 }
 
-message PeerAuthRequest {
+message UpdateLimitsRequest {
     string room_id = 1;
-    string peer_id = 2;
-    string access_token = 3;
+    string operator_peer_id = 2;
+    int64 extend_duration_seconds = 3; // Продление сессии (лимит до 5 часов суммарно)
+    int32 increment_max_peers = 4;     // Увеличение лимита участников до 100 человек
 }
 
-message PeerAuthResponse {
-    bool is_allowed = 1;
-    string allocated_ice_server = 2;
+message UpdateLimitsResponse {
+    bool is_updated = 1;
+    int64 current_remaining_seconds = 2;
 }
 
 message ControlFramePayload {
     string room_id = 1;
-    string operator_peer_id = 2; // ID модератора
-    string target_peer_id = 3;   // Жертва (кого глушим или баним)
-    string command_type = 4;     // "MUTE_AUDIO", "STOP_VIDEO", "KICK"
+    string operator_peer_id = 2; // ID модератора для проверки b2b прав в RAM за O(1)
+    string target_peer_id = 3;   // ID участника-цели (жертвы модерации)
+    string command_type = 4;     // "MUTE_AUDIO", "STOP_VIDEO", "SET_PAUSE", "UNPAUSE", "KICK_PEER"
+    int64 pause_duration_seconds = 5; // Время перерыва, если команда "SET_PAUSE"
 }
 
 message ControlFrameAck {
     bool is_dispatched = 1;
 }
 
-// Добавь в конец файла pb/signaling.proto:
-
-service ChatHistoryBridge {
-    // Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь
-    rpc IngestChatMessage(ChatMessagePayload) returns (ChatMessageAck);
-    
-    // Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K)
-    rpc QueryT9Autocomplete(T9QueryRequest) returns (T9QueryResponse);
-}
+// --- СТРУКТУРЫ ДАННЫХ ЧАТА И ТЕЛЕМЕТРИИ (CHAT & TELEMETRY) ---
 
 message ChatMessagePayload {
-	string room_id = 1;
-	string sender_id = 2;
-	string message_text = 3;
+    string room_id = 1;
+    string sender_id = 2;
+    string message_text = 3; // Сырой текст, проходящий валидацию лимита в 1000 символов
 }
 
 message ChatMessageAck {
-	string message_id = 1;
-	string sanitized_text = 2;
-	bool contains_url = 3;
+    string message_id = 1;
+    string sanitized_text = 2; // Текст после серверной очистки от XSS и обертки ссылок
+    bool contains_url = 3;     // Флаг для фронтенда для активации Safe Transfer Page
+    google.protobuf.Timestamp timestamp = 4;
 }
 
 message T9QueryRequest {
-	string prefix = 1;
+    string prefix = 1; // Префикс для прохода по Trie-дереву (например, 'ghb')
 }
 
 message T9QueryResponse {
-	string suggestion = 1;
-	bool is_found = 2;
+    string suggestion = 1; // Подсказка автодополнения (например, 'привет')
+    bool is_found = 2;
 }

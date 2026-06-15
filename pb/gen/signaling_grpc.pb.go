@@ -20,7 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	MediaSignalingBridge_CreateConferenceRoom_FullMethodName  = "/pb.MediaSignalingBridge/CreateConferenceRoom"
-	MediaSignalingBridge_AuthenticatePeer_FullMethodName      = "/pb.MediaSignalingBridge/AuthenticatePeer"
+	MediaSignalingBridge_UpdateRoomLimits_FullMethodName      = "/pb.MediaSignalingBridge/UpdateRoomLimits"
 	MediaSignalingBridge_BroadcastControlFrame_FullMethodName = "/pb.MediaSignalingBridge/BroadcastControlFrame"
 )
 
@@ -30,11 +30,11 @@ const (
 //
 // MediaSignalingBridge управляет Control Plane плоскостью WebRTC Mesh комнат
 type MediaSignalingBridgeClient interface {
-	// Инициализировать комнату конференции модератором
+	// Инициализировать комнату конференции модератором (Часть 3)
 	CreateConferenceRoom(ctx context.Context, in *RoomConfigRequest, opts ...grpc.CallOption) (*RoomConfigResponse, error)
-	// Валидация HMAC-токена и пароля при входе участника
-	AuthenticatePeer(ctx context.Context, in *PeerAuthRequest, opts ...grpc.CallOption) (*PeerAuthResponse, error)
-	// Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban)
+	// Продлить время жизни сессии или увеличить лимит участников (Часть 3)
+	UpdateRoomLimits(ctx context.Context, in *UpdateLimitsRequest, opts ...grpc.CallOption) (*UpdateLimitsResponse, error)
+	// Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban, Pause) (Часть 1 & 3)
 	BroadcastControlFrame(ctx context.Context, in *ControlFramePayload, opts ...grpc.CallOption) (*ControlFrameAck, error)
 }
 
@@ -56,10 +56,10 @@ func (c *mediaSignalingBridgeClient) CreateConferenceRoom(ctx context.Context, i
 	return out, nil
 }
 
-func (c *mediaSignalingBridgeClient) AuthenticatePeer(ctx context.Context, in *PeerAuthRequest, opts ...grpc.CallOption) (*PeerAuthResponse, error) {
+func (c *mediaSignalingBridgeClient) UpdateRoomLimits(ctx context.Context, in *UpdateLimitsRequest, opts ...grpc.CallOption) (*UpdateLimitsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(PeerAuthResponse)
-	err := c.cc.Invoke(ctx, MediaSignalingBridge_AuthenticatePeer_FullMethodName, in, out, cOpts...)
+	out := new(UpdateLimitsResponse)
+	err := c.cc.Invoke(ctx, MediaSignalingBridge_UpdateRoomLimits_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -82,11 +82,11 @@ func (c *mediaSignalingBridgeClient) BroadcastControlFrame(ctx context.Context, 
 //
 // MediaSignalingBridge управляет Control Plane плоскостью WebRTC Mesh комнат
 type MediaSignalingBridgeServer interface {
-	// Инициализировать комнату конференции модератором
+	// Инициализировать комнату конференции модератором (Часть 3)
 	CreateConferenceRoom(context.Context, *RoomConfigRequest) (*RoomConfigResponse, error)
-	// Валидация HMAC-токена и пароля при входе участника
-	AuthenticatePeer(context.Context, *PeerAuthRequest) (*PeerAuthResponse, error)
-	// Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban)
+	// Продлить время жизни сессии или увеличить лимит участников (Часть 3)
+	UpdateRoomLimits(context.Context, *UpdateLimitsRequest) (*UpdateLimitsResponse, error)
+	// Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban, Pause) (Часть 1 & 3)
 	BroadcastControlFrame(context.Context, *ControlFramePayload) (*ControlFrameAck, error)
 	mustEmbedUnimplementedMediaSignalingBridgeServer()
 }
@@ -101,8 +101,8 @@ type UnimplementedMediaSignalingBridgeServer struct{}
 func (UnimplementedMediaSignalingBridgeServer) CreateConferenceRoom(context.Context, *RoomConfigRequest) (*RoomConfigResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateConferenceRoom not implemented")
 }
-func (UnimplementedMediaSignalingBridgeServer) AuthenticatePeer(context.Context, *PeerAuthRequest) (*PeerAuthResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method AuthenticatePeer not implemented")
+func (UnimplementedMediaSignalingBridgeServer) UpdateRoomLimits(context.Context, *UpdateLimitsRequest) (*UpdateLimitsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateRoomLimits not implemented")
 }
 func (UnimplementedMediaSignalingBridgeServer) BroadcastControlFrame(context.Context, *ControlFramePayload) (*ControlFrameAck, error) {
 	return nil, status.Error(codes.Unimplemented, "method BroadcastControlFrame not implemented")
@@ -146,20 +146,20 @@ func _MediaSignalingBridge_CreateConferenceRoom_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MediaSignalingBridge_AuthenticatePeer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PeerAuthRequest)
+func _MediaSignalingBridge_UpdateRoomLimits_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateLimitsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MediaSignalingBridgeServer).AuthenticatePeer(ctx, in)
+		return srv.(MediaSignalingBridgeServer).UpdateRoomLimits(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: MediaSignalingBridge_AuthenticatePeer_FullMethodName,
+		FullMethod: MediaSignalingBridge_UpdateRoomLimits_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MediaSignalingBridgeServer).AuthenticatePeer(ctx, req.(*PeerAuthRequest))
+		return srv.(MediaSignalingBridgeServer).UpdateRoomLimits(ctx, req.(*UpdateLimitsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -194,8 +194,8 @@ var MediaSignalingBridge_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _MediaSignalingBridge_CreateConferenceRoom_Handler,
 		},
 		{
-			MethodName: "AuthenticatePeer",
-			Handler:    _MediaSignalingBridge_AuthenticatePeer_Handler,
+			MethodName: "UpdateRoomLimits",
+			Handler:    _MediaSignalingBridge_UpdateRoomLimits_Handler,
 		},
 		{
 			MethodName: "BroadcastControlFrame",
@@ -214,10 +214,12 @@ const (
 // ChatHistoryBridgeClient is the client API for ChatHistoryBridge service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// ChatHistoryBridge полностью изолирует асинхронный аналитический слой чата (Часть 2)
 type ChatHistoryBridgeClient interface {
-	// Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь
+	// Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь (Часть 2)
 	IngestChatMessage(ctx context.Context, in *ChatMessagePayload, opts ...grpc.CallOption) (*ChatMessageAck, error)
-	// Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K)
+	// Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K) (Часть 2)
 	QueryT9Autocomplete(ctx context.Context, in *T9QueryRequest, opts ...grpc.CallOption) (*T9QueryResponse, error)
 }
 
@@ -252,10 +254,12 @@ func (c *chatHistoryBridgeClient) QueryT9Autocomplete(ctx context.Context, in *T
 // ChatHistoryBridgeServer is the server API for ChatHistoryBridge service.
 // All implementations must embed UnimplementedChatHistoryBridgeServer
 // for forward compatibility.
+//
+// ChatHistoryBridge полностью изолирует асинхронный аналитический слой чата (Часть 2)
 type ChatHistoryBridgeServer interface {
-	// Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь
+	// Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь (Часть 2)
 	IngestChatMessage(context.Context, *ChatMessagePayload) (*ChatMessageAck, error)
-	// Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K)
+	// Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K) (Часть 2)
 	QueryT9Autocomplete(context.Context, *T9QueryRequest) (*T9QueryResponse, error)
 	mustEmbedUnimplementedChatHistoryBridgeServer()
 }
