@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>🏛️ WebRTC Mesh Platform — Присоединиться к сессии</title>
+    <title>📱 WebRTC Mesh — Вход сотрудников</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
@@ -30,10 +30,10 @@
 
             <div style="display: flex; gap: 20px; margin-top: 16px; font-size: 13px;">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" id="start-mic" checked> 🎙️ Включить микрофон
+                    <input type="checkbox" id="start-mic" checked style="accent-color: #4299e1;"> 🎙️ Включить микрофон
                 </label>
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" id="start-video" checked> 📹 Включить камеру
+                    <input type="checkbox" id="start-video" checked style="accent-color: #4299e1;"> 📹 Включить камеру
                 </label>
             </div>
         </div>
@@ -43,7 +43,7 @@
         </button>
     </div>
 
-    <!-- Нативный импорт ESM логики страницы join -->
+    <!-- Нативный ESM-импорт логики страницы join -->
     <script type="module">
         import { initJoinPage } from '/static/js/join.js';
         initJoinPage();
