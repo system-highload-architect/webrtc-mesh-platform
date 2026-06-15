@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// StartBackgroundJanitors запускает фоновые b2b-конвейеры мониторинга таймаутов и бэкоффа (Req. 4)
+// StartBackgroundJanitors запускает фоновые b2b-конвейеры мониторинга таймаутов и бэкоффа
 func (s *SignalingService) StartBackgroundJanitors(ctx context.Context) {
 	s.log.Info("Асинхронные воркеры Каскадного вытеснения и Экспоненциального Бэкоффа успешно запущены...")
 
@@ -43,19 +43,19 @@ func (s *SignalingService) StartBackgroundJanitors(ctx context.Context) {
 	}()
 }
 
-// evictIdleRoomsCascade реализует ленивое каскадное сжатие хвоста RAM-памяти (Паттерн Давида)
+// evictIdleRoomsCascade реализует ленивое каскадное сжатие хвоста RAM-памяти на базе LRU
 func (s *SignalingService) evictIdleRoomsCascade() {
 	evictedCount := 0
 	now := time.Now()
 
-	// Обходим все 32 изолированных шарда для полной ликвидации Mutex Contention
 	for i := uint32(0); i < s.shardCount; i++ {
 		shard := s.shards[i]
 
 		shard.mu.Lock()
 		for roomID, room := range shard.rooms {
-			// Если в комнате нет ни одного пользователя более 30 минут
+			// Если в комнате нет ни одного пользователя более 30 минут — удаляем её из LRU кэша за O(1)
 			if len(room.Peers) == 0 && now.Sub(room.CreatedAt) > 30*time.Minute {
+				shard.lruCache.Remove(roomID)
 				delete(shard.rooms, roomID)
 				delete(shard.conns, roomID)
 				evictedCount++
@@ -65,8 +65,7 @@ func (s *SignalingService) evictIdleRoomsCascade() {
 	}
 
 	if evictedCount > 0 {
-		s.log.Info("ПАТТЕРН ДАВИДА -> Каскадно вытеснено %d пустых комнат. Форсирование сборщика мусора runtime.GC().", evictedCount)
-		// Принудительно возвращаем освобожденные страницы памяти операционной системе хоста
+		s.log.Info("ПАТТЕРН ДАВИДА -> Нативно вытеснено %d пустых комнат из LRU-хвоста. Вызов runtime.GC().", evictedCount)
 		runtime.GC()
 	}
 }
@@ -80,21 +79,17 @@ func (s *SignalingService) monitorIdleRoomsBackoff(ctx context.Context) {
 		shard.mu.RLock()
 
 		for roomID, room := range shard.rooms {
-			// Если в комнате есть люди, но полная тишина 30 минут и пауза не установлена
 			if len(room.Peers) > 0 && !room.IsPaused && now.Sub(room.CreatedAt) > 30*time.Minute {
 				s.log.Info("IDLE DETECTED -> В комнате %s нет активности 30 минут. Запуск конвейера оповещений...", roomID)
 
-				// Запускаем асинхронный экспоненциальный бэкофф ретраев (3-5 раз)
 				go func(rID string) {
 					for attempt := 1; attempt <= 4; attempt++ {
-						// Вычисляем экспоненциальную задержку: 2^attempt минут (2, 4, 8, 16...)
 						backoffDuration := time.Duration(math.Pow(2, float64(attempt))) * time.Minute
 
 						select {
 						case <-ctx.Done():
 							return
 						case <-time.After(backoffDuration):
-							// Проверяем, не появилась ли активность
 							if s.isRoomStillIdle(rID) {
 								s.log.Info("💥 BACKOFF RETRY [%d/4] -> Отправка фрейма STIMULUS_ALERT модератору комнаты %s", attempt, rID)
 								s.broadcastToRoom(rID, map[string]any{
@@ -108,7 +103,7 @@ func (s *SignalingService) monitorIdleRoomsBackoff(ctx context.Context) {
 									s.forceCloseRoom(rID)
 								}
 							} else {
-								return // Активность появилась, выходим из цикла бэкоффа
+								return
 							}
 						}
 					}
@@ -125,7 +120,7 @@ func (s *SignalingService) isRoomStillIdle(roomID string) bool {
 	shard.mu.RLock()
 	defer shard.mu.RUnlock()
 
-	_, exists := shard.rooms[roomID]
+	_, exists := shard.lruCache.Get(roomID) // Валидируем по индексу кэша
 	return exists
 }
 
@@ -135,6 +130,7 @@ func (s *SignalingService) forceCloseRoom(roomID string) {
 	shard.mu.Lock()
 	defer shard.mu.Unlock()
 
+	shard.lruCache.Remove(roomID)
 	delete(shard.rooms, roomID)
 	delete(shard.conns, roomID)
 }

@@ -1,4 +1,5 @@
 import { checkT9, handleTabCompletion } from './chat.js';
+import { renderIncomingVector } from './drawing.js';
 
 let ws = null;
 let isRecording = false;
@@ -30,6 +31,7 @@ export function initConference(roomID, tokenStr, initQuality, initMic, initCam, 
 
     // 2. Подключаем версионированный v1 WebSocket сигнального шлюза
     ws = new WebSocket(`ws://${window.location.host}/api/v1/ws?room=${roomID}&token=${tokenStr}`);
+    window.ws = ws;
 
     ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
@@ -38,6 +40,11 @@ export function initConference(roomID, tokenStr, initQuality, initMic, initCam, 
 }
 
 function handleIncomingSignal(msg, initQuality, initMic, initCam) {
+    if (msg.draw_vector) {
+        renderIncomingVector(msg.draw_vector);
+        return;
+    }
+
     if (msg.type === "auth_error") {
         alert("[ОШИБКА БЕЗОПАСНОСТИ] Токен JWT не прошел криптографическую валидацию ядра.");
         window.location.href = "/";

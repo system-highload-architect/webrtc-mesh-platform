@@ -59,6 +59,7 @@
     <!-- Нативный ESM-импорт логики -->
     <script type="module">
         import { initConference, triggerControl, toggleRecording, toggleDrawingMode } from '/static/js/conference.js';
+        import { initDrawingEngine } from '/static/js/drawing.js';
 
         const urlParams = new URLSearchParams(window.location.search);
         const roomID = urlParams.get('room') || "demo_room";
@@ -94,6 +95,7 @@
 
         // Запуск ядра
         initConference(roomID, tokenStr, initQuality, initMic, initCam, myPeerID, isModerator);
+        initDrawingEngine('drawing-canvas', window.ws || null, isModerator);
     </script>
 </body>
 </html>
