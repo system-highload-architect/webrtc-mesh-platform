@@ -6,32 +6,65 @@ option go_package = "webrtc-mesh-platform/pb/gen;gen";
 
 import "google/protobuf/timestamp.proto";
 
+// AuthenticationBridge управляет учетными записями и сессиями JWT
+service AuthenticationBridge {
+    // Авторизация пользователя и выдача защищенного b2b JWT токена
+    rpc LoginSubscriber(LoginRequest) returns (LoginResponse);
+    
+    // Получить профиль пользователя из ScyllaDB (SPR)
+    rpc GetSubscriberProfile(ProfileRequest) returns (ProfileResponse);
+}
+
 // MediaSignalingBridge управляет Control Plane плоскостью WebRTC Mesh комнат
 service MediaSignalingBridge {
-    // Инициализировать комнату конференции модератором (Часть 3)
+    // Инициализировать комнату конференции модератором
     rpc CreateConferenceRoom(RoomConfigRequest) returns (RoomConfigResponse);
     
-    // Продлить время жизни сессии или увеличить лимит участников (Часть 3)
+    // Продлить время жизни сессии или увеличить лимит участников
     rpc UpdateRoomLimits(UpdateLimitsRequest) returns (UpdateLimitsResponse);
     
-    // Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban, Pause) (Часть 1 & 3)
+    // Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban, Pause)
     rpc BroadcastControlFrame(ControlFramePayload) returns (ControlFrameAck);
 }
 
-// ChatHistoryBridge полностью изолирует асинхронный аналитический слой чата (Часть 2)
+// ChatHistoryBridge полностью изолирует асинхронный аналитический слой чата
 service ChatHistoryBridge {
-    // Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь (Часть 2)
+    // Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь
     rpc IngestChatMessage(ChatMessagePayload) returns (ChatMessageAck);
     
-    // Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K) (Часть 2)
+    // Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K)
     rpc QueryT9Autocomplete(T9QueryRequest) returns (T9QueryResponse);
+}
+
+// --- СТРУКТУРЫ ДАННЫХ АВТОРИЗАЦИИ (AUTH & SPR SHIELDS) ---
+
+message LoginRequest {
+    string email = 1;
+    string password_raw = 2;
+}
+
+message LoginResponse {
+    bool is_success = 1;
+    string jwt_token = 2; // Строго типизированный токен авторизации личности
+    int64 expires_at = 3;
+}
+
+message ProfileRequest {
+    string user_id = 1;
+}
+
+message ProfileResponse {
+    string user_id = 1;
+    string name = 2;
+    string email = 3;
+    string user_role = 4; // "ORGANIZER" / "EMPLOYEE"
 }
 
 // --- СТРУКТУРЫ ДАННЫХ КОНТРОЛЛЕРА КОМНАТ (ROOM MANAGEMENT) ---
 
 message RoomConfigRequest {
     string room_id = 1;
-    string pass_phrase_hash = 2; // SHA256 хэш пароля для входа
+    string jwt_token = 2; // Привязываем создание к JWT токену личности
     int32 max_subscribers = 3;   // Лимит участников (до 100 человек по ТЗ)
     int64 duration_seconds = 4;  // Исходно заданное время конференции
     repeated string invite_emails = 5; // Список сотрудников для асинхронной Email рассылки
@@ -45,7 +78,7 @@ message RoomConfigResponse {
 
 message UpdateLimitsRequest {
     string room_id = 1;
-    string operator_peer_id = 2;
+    string jwt_token = 2;
     int64 extend_duration_seconds = 3; // Продление сессии (лимит до 5 часов суммарно)
     int32 increment_max_peers = 4;     // Увеличение лимита участников до 100 человек
 }
@@ -57,7 +90,7 @@ message UpdateLimitsResponse {
 
 message ControlFramePayload {
     string room_id = 1;
-    string operator_peer_id = 2; // ID модератора для проверки b2b прав в RAM за O(1)
+    string jwt_token = 2; // Права модерации валидируются строго через JWT подпись сервера
     string target_peer_id = 3;   // ID участника-цели (жертвы модерации)
     string command_type = 4;     // "MUTE_AUDIO", "STOP_VIDEO", "SET_PAUSE", "UNPAUSE", "KICK_PEER"
     int64 pause_duration_seconds = 5; // Время перерыва, если команда "SET_PAUSE"

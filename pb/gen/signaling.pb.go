@@ -22,10 +22,234 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type LoginRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	PasswordRaw   string                 `protobuf:"bytes,2,opt,name=password_raw,json=passwordRaw,proto3" json:"password_raw,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LoginRequest) Reset() {
+	*x = LoginRequest{}
+	mi := &file_pb_signaling_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoginRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoginRequest) ProtoMessage() {}
+
+func (x *LoginRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_signaling_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
+func (*LoginRequest) Descriptor() ([]byte, []int) {
+	return file_pb_signaling_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *LoginRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *LoginRequest) GetPasswordRaw() string {
+	if x != nil {
+		return x.PasswordRaw
+	}
+	return ""
+}
+
+type LoginResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IsSuccess     bool                   `protobuf:"varint,1,opt,name=is_success,json=isSuccess,proto3" json:"is_success,omitempty"`
+	JwtToken      string                 `protobuf:"bytes,2,opt,name=jwt_token,json=jwtToken,proto3" json:"jwt_token,omitempty"` // Строго типизированный токен авторизации личности
+	ExpiresAt     int64                  `protobuf:"varint,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LoginResponse) Reset() {
+	*x = LoginResponse{}
+	mi := &file_pb_signaling_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoginResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoginResponse) ProtoMessage() {}
+
+func (x *LoginResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_signaling_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoginResponse.ProtoReflect.Descriptor instead.
+func (*LoginResponse) Descriptor() ([]byte, []int) {
+	return file_pb_signaling_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *LoginResponse) GetIsSuccess() bool {
+	if x != nil {
+		return x.IsSuccess
+	}
+	return false
+}
+
+func (x *LoginResponse) GetJwtToken() string {
+	if x != nil {
+		return x.JwtToken
+	}
+	return ""
+}
+
+func (x *LoginResponse) GetExpiresAt() int64 {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return 0
+}
+
+type ProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProfileRequest) Reset() {
+	*x = ProfileRequest{}
+	mi := &file_pb_signaling_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProfileRequest) ProtoMessage() {}
+
+func (x *ProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_signaling_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProfileRequest.ProtoReflect.Descriptor instead.
+func (*ProfileRequest) Descriptor() ([]byte, []int) {
+	return file_pb_signaling_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ProfileRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type ProfileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Email         string                 `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
+	UserRole      string                 `protobuf:"bytes,4,opt,name=user_role,json=userRole,proto3" json:"user_role,omitempty"` // "ORGANIZER" / "EMPLOYEE"
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProfileResponse) Reset() {
+	*x = ProfileResponse{}
+	mi := &file_pb_signaling_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProfileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProfileResponse) ProtoMessage() {}
+
+func (x *ProfileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_signaling_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProfileResponse.ProtoReflect.Descriptor instead.
+func (*ProfileResponse) Descriptor() ([]byte, []int) {
+	return file_pb_signaling_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ProfileResponse) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *ProfileResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ProfileResponse) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *ProfileResponse) GetUserRole() string {
+	if x != nil {
+		return x.UserRole
+	}
+	return ""
+}
+
 type RoomConfigRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	RoomId          string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	PassPhraseHash  string                 `protobuf:"bytes,2,opt,name=pass_phrase_hash,json=passPhraseHash,proto3" json:"pass_phrase_hash,omitempty"`   // SHA256 хэш пароля для входа
+	JwtToken        string                 `protobuf:"bytes,2,opt,name=jwt_token,json=jwtToken,proto3" json:"jwt_token,omitempty"`                       // Привязываем создание к JWT токену личности
 	MaxSubscribers  int32                  `protobuf:"varint,3,opt,name=max_subscribers,json=maxSubscribers,proto3" json:"max_subscribers,omitempty"`    // Лимит участников (до 100 человек по ТЗ)
 	DurationSeconds int64                  `protobuf:"varint,4,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"` // Исходно заданное время конференции
 	InviteEmails    []string               `protobuf:"bytes,5,rep,name=invite_emails,json=inviteEmails,proto3" json:"invite_emails,omitempty"`           // Список сотрудников для асинхронной Email рассылки
@@ -35,7 +259,7 @@ type RoomConfigRequest struct {
 
 func (x *RoomConfigRequest) Reset() {
 	*x = RoomConfigRequest{}
-	mi := &file_pb_signaling_proto_msgTypes[0]
+	mi := &file_pb_signaling_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -47,7 +271,7 @@ func (x *RoomConfigRequest) String() string {
 func (*RoomConfigRequest) ProtoMessage() {}
 
 func (x *RoomConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_signaling_proto_msgTypes[0]
+	mi := &file_pb_signaling_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -60,7 +284,7 @@ func (x *RoomConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomConfigRequest.ProtoReflect.Descriptor instead.
 func (*RoomConfigRequest) Descriptor() ([]byte, []int) {
-	return file_pb_signaling_proto_rawDescGZIP(), []int{0}
+	return file_pb_signaling_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RoomConfigRequest) GetRoomId() string {
@@ -70,9 +294,9 @@ func (x *RoomConfigRequest) GetRoomId() string {
 	return ""
 }
 
-func (x *RoomConfigRequest) GetPassPhraseHash() string {
+func (x *RoomConfigRequest) GetJwtToken() string {
 	if x != nil {
-		return x.PassPhraseHash
+		return x.JwtToken
 	}
 	return ""
 }
@@ -109,7 +333,7 @@ type RoomConfigResponse struct {
 
 func (x *RoomConfigResponse) Reset() {
 	*x = RoomConfigResponse{}
-	mi := &file_pb_signaling_proto_msgTypes[1]
+	mi := &file_pb_signaling_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -121,7 +345,7 @@ func (x *RoomConfigResponse) String() string {
 func (*RoomConfigResponse) ProtoMessage() {}
 
 func (x *RoomConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_signaling_proto_msgTypes[1]
+	mi := &file_pb_signaling_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -134,7 +358,7 @@ func (x *RoomConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomConfigResponse.ProtoReflect.Descriptor instead.
 func (*RoomConfigResponse) Descriptor() ([]byte, []int) {
-	return file_pb_signaling_proto_rawDescGZIP(), []int{1}
+	return file_pb_signaling_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RoomConfigResponse) GetIsProvisioned() bool {
@@ -161,7 +385,7 @@ func (x *RoomConfigResponse) GetStatusCode() uint32 {
 type UpdateLimitsRequest struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	RoomId                string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	OperatorPeerId        string                 `protobuf:"bytes,2,opt,name=operator_peer_id,json=operatorPeerId,proto3" json:"operator_peer_id,omitempty"`
+	JwtToken              string                 `protobuf:"bytes,2,opt,name=jwt_token,json=jwtToken,proto3" json:"jwt_token,omitempty"`
 	ExtendDurationSeconds int64                  `protobuf:"varint,3,opt,name=extend_duration_seconds,json=extendDurationSeconds,proto3" json:"extend_duration_seconds,omitempty"` // Продление сессии (лимит до 5 часов суммарно)
 	IncrementMaxPeers     int32                  `protobuf:"varint,4,opt,name=increment_max_peers,json=incrementMaxPeers,proto3" json:"increment_max_peers,omitempty"`             // Увеличение лимита участников до 100 человек
 	unknownFields         protoimpl.UnknownFields
@@ -170,7 +394,7 @@ type UpdateLimitsRequest struct {
 
 func (x *UpdateLimitsRequest) Reset() {
 	*x = UpdateLimitsRequest{}
-	mi := &file_pb_signaling_proto_msgTypes[2]
+	mi := &file_pb_signaling_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -182,7 +406,7 @@ func (x *UpdateLimitsRequest) String() string {
 func (*UpdateLimitsRequest) ProtoMessage() {}
 
 func (x *UpdateLimitsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_signaling_proto_msgTypes[2]
+	mi := &file_pb_signaling_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -195,7 +419,7 @@ func (x *UpdateLimitsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateLimitsRequest.ProtoReflect.Descriptor instead.
 func (*UpdateLimitsRequest) Descriptor() ([]byte, []int) {
-	return file_pb_signaling_proto_rawDescGZIP(), []int{2}
+	return file_pb_signaling_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *UpdateLimitsRequest) GetRoomId() string {
@@ -205,9 +429,9 @@ func (x *UpdateLimitsRequest) GetRoomId() string {
 	return ""
 }
 
-func (x *UpdateLimitsRequest) GetOperatorPeerId() string {
+func (x *UpdateLimitsRequest) GetJwtToken() string {
 	if x != nil {
-		return x.OperatorPeerId
+		return x.JwtToken
 	}
 	return ""
 }
@@ -236,7 +460,7 @@ type UpdateLimitsResponse struct {
 
 func (x *UpdateLimitsResponse) Reset() {
 	*x = UpdateLimitsResponse{}
-	mi := &file_pb_signaling_proto_msgTypes[3]
+	mi := &file_pb_signaling_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -248,7 +472,7 @@ func (x *UpdateLimitsResponse) String() string {
 func (*UpdateLimitsResponse) ProtoMessage() {}
 
 func (x *UpdateLimitsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_signaling_proto_msgTypes[3]
+	mi := &file_pb_signaling_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -261,7 +485,7 @@ func (x *UpdateLimitsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateLimitsResponse.ProtoReflect.Descriptor instead.
 func (*UpdateLimitsResponse) Descriptor() ([]byte, []int) {
-	return file_pb_signaling_proto_rawDescGZIP(), []int{3}
+	return file_pb_signaling_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *UpdateLimitsResponse) GetIsUpdated() bool {
@@ -281,7 +505,7 @@ func (x *UpdateLimitsResponse) GetCurrentRemainingSeconds() int64 {
 type ControlFramePayload struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	RoomId               string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	OperatorPeerId       string                 `protobuf:"bytes,2,opt,name=operator_peer_id,json=operatorPeerId,proto3" json:"operator_peer_id,omitempty"`                    // ID модератора для проверки b2b прав в RAM за O(1)
+	JwtToken             string                 `protobuf:"bytes,2,opt,name=jwt_token,json=jwtToken,proto3" json:"jwt_token,omitempty"`                                        // Права модерации валидируются строго через JWT подпись сервера
 	TargetPeerId         string                 `protobuf:"bytes,3,opt,name=target_peer_id,json=targetPeerId,proto3" json:"target_peer_id,omitempty"`                          // ID участника-цели (жертвы модерации)
 	CommandType          string                 `protobuf:"bytes,4,opt,name=command_type,json=commandType,proto3" json:"command_type,omitempty"`                               // "MUTE_AUDIO", "STOP_VIDEO", "SET_PAUSE", "UNPAUSE", "KICK_PEER"
 	PauseDurationSeconds int64                  `protobuf:"varint,5,opt,name=pause_duration_seconds,json=pauseDurationSeconds,proto3" json:"pause_duration_seconds,omitempty"` // Время перерыва, если команда "SET_PAUSE"
@@ -291,7 +515,7 @@ type ControlFramePayload struct {
 
 func (x *ControlFramePayload) Reset() {
 	*x = ControlFramePayload{}
-	mi := &file_pb_signaling_proto_msgTypes[4]
+	mi := &file_pb_signaling_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -303,7 +527,7 @@ func (x *ControlFramePayload) String() string {
 func (*ControlFramePayload) ProtoMessage() {}
 
 func (x *ControlFramePayload) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_signaling_proto_msgTypes[4]
+	mi := &file_pb_signaling_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -316,7 +540,7 @@ func (x *ControlFramePayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControlFramePayload.ProtoReflect.Descriptor instead.
 func (*ControlFramePayload) Descriptor() ([]byte, []int) {
-	return file_pb_signaling_proto_rawDescGZIP(), []int{4}
+	return file_pb_signaling_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ControlFramePayload) GetRoomId() string {
@@ -326,9 +550,9 @@ func (x *ControlFramePayload) GetRoomId() string {
 	return ""
 }
 
-func (x *ControlFramePayload) GetOperatorPeerId() string {
+func (x *ControlFramePayload) GetJwtToken() string {
 	if x != nil {
-		return x.OperatorPeerId
+		return x.JwtToken
 	}
 	return ""
 }
@@ -363,7 +587,7 @@ type ControlFrameAck struct {
 
 func (x *ControlFrameAck) Reset() {
 	*x = ControlFrameAck{}
-	mi := &file_pb_signaling_proto_msgTypes[5]
+	mi := &file_pb_signaling_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -375,7 +599,7 @@ func (x *ControlFrameAck) String() string {
 func (*ControlFrameAck) ProtoMessage() {}
 
 func (x *ControlFrameAck) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_signaling_proto_msgTypes[5]
+	mi := &file_pb_signaling_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -388,7 +612,7 @@ func (x *ControlFrameAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControlFrameAck.ProtoReflect.Descriptor instead.
 func (*ControlFrameAck) Descriptor() ([]byte, []int) {
-	return file_pb_signaling_proto_rawDescGZIP(), []int{5}
+	return file_pb_signaling_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ControlFrameAck) GetIsDispatched() bool {
@@ -409,7 +633,7 @@ type ChatMessagePayload struct {
 
 func (x *ChatMessagePayload) Reset() {
 	*x = ChatMessagePayload{}
-	mi := &file_pb_signaling_proto_msgTypes[6]
+	mi := &file_pb_signaling_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -421,7 +645,7 @@ func (x *ChatMessagePayload) String() string {
 func (*ChatMessagePayload) ProtoMessage() {}
 
 func (x *ChatMessagePayload) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_signaling_proto_msgTypes[6]
+	mi := &file_pb_signaling_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -434,7 +658,7 @@ func (x *ChatMessagePayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChatMessagePayload.ProtoReflect.Descriptor instead.
 func (*ChatMessagePayload) Descriptor() ([]byte, []int) {
-	return file_pb_signaling_proto_rawDescGZIP(), []int{6}
+	return file_pb_signaling_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ChatMessagePayload) GetRoomId() string {
@@ -470,7 +694,7 @@ type ChatMessageAck struct {
 
 func (x *ChatMessageAck) Reset() {
 	*x = ChatMessageAck{}
-	mi := &file_pb_signaling_proto_msgTypes[7]
+	mi := &file_pb_signaling_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -482,7 +706,7 @@ func (x *ChatMessageAck) String() string {
 func (*ChatMessageAck) ProtoMessage() {}
 
 func (x *ChatMessageAck) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_signaling_proto_msgTypes[7]
+	mi := &file_pb_signaling_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -495,7 +719,7 @@ func (x *ChatMessageAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChatMessageAck.ProtoReflect.Descriptor instead.
 func (*ChatMessageAck) Descriptor() ([]byte, []int) {
-	return file_pb_signaling_proto_rawDescGZIP(), []int{7}
+	return file_pb_signaling_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ChatMessageAck) GetMessageId() string {
@@ -535,7 +759,7 @@ type T9QueryRequest struct {
 
 func (x *T9QueryRequest) Reset() {
 	*x = T9QueryRequest{}
-	mi := &file_pb_signaling_proto_msgTypes[8]
+	mi := &file_pb_signaling_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -547,7 +771,7 @@ func (x *T9QueryRequest) String() string {
 func (*T9QueryRequest) ProtoMessage() {}
 
 func (x *T9QueryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_signaling_proto_msgTypes[8]
+	mi := &file_pb_signaling_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -560,7 +784,7 @@ func (x *T9QueryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use T9QueryRequest.ProtoReflect.Descriptor instead.
 func (*T9QueryRequest) Descriptor() ([]byte, []int) {
-	return file_pb_signaling_proto_rawDescGZIP(), []int{8}
+	return file_pb_signaling_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *T9QueryRequest) GetPrefix() string {
@@ -580,7 +804,7 @@ type T9QueryResponse struct {
 
 func (x *T9QueryResponse) Reset() {
 	*x = T9QueryResponse{}
-	mi := &file_pb_signaling_proto_msgTypes[9]
+	mi := &file_pb_signaling_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -592,7 +816,7 @@ func (x *T9QueryResponse) String() string {
 func (*T9QueryResponse) ProtoMessage() {}
 
 func (x *T9QueryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_signaling_proto_msgTypes[9]
+	mi := &file_pb_signaling_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -605,7 +829,7 @@ func (x *T9QueryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use T9QueryResponse.ProtoReflect.Descriptor instead.
 func (*T9QueryResponse) Descriptor() ([]byte, []int) {
-	return file_pb_signaling_proto_rawDescGZIP(), []int{9}
+	return file_pb_signaling_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *T9QueryResponse) GetSuggestion() string {
@@ -626,10 +850,26 @@ var File_pb_signaling_proto protoreflect.FileDescriptor
 
 const file_pb_signaling_proto_rawDesc = "" +
 	"\n" +
-	"\x12pb/signaling.proto\x12\x02pb\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcf\x01\n" +
+	"\x12pb/signaling.proto\x12\x02pb\x1a\x1fgoogle/protobuf/timestamp.proto\"G\n" +
+	"\fLoginRequest\x12\x14\n" +
+	"\x05email\x18\x01 \x01(\tR\x05email\x12!\n" +
+	"\fpassword_raw\x18\x02 \x01(\tR\vpasswordRaw\"j\n" +
+	"\rLoginResponse\x12\x1d\n" +
+	"\n" +
+	"is_success\x18\x01 \x01(\bR\tisSuccess\x12\x1b\n" +
+	"\tjwt_token\x18\x02 \x01(\tR\bjwtToken\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\x03 \x01(\x03R\texpiresAt\")\n" +
+	"\x0eProfileRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"q\n" +
+	"\x0fProfileResponse\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
+	"\x05email\x18\x03 \x01(\tR\x05email\x12\x1b\n" +
+	"\tuser_role\x18\x04 \x01(\tR\buserRole\"\xc2\x01\n" +
 	"\x11RoomConfigRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
-	"\x10pass_phrase_hash\x18\x02 \x01(\tR\x0epassPhraseHash\x12'\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1b\n" +
+	"\tjwt_token\x18\x02 \x01(\tR\bjwtToken\x12'\n" +
 	"\x0fmax_subscribers\x18\x03 \x01(\x05R\x0emaxSubscribers\x12)\n" +
 	"\x10duration_seconds\x18\x04 \x01(\x03R\x0fdurationSeconds\x12#\n" +
 	"\rinvite_emails\x18\x05 \x03(\tR\finviteEmails\"\x88\x01\n" +
@@ -637,19 +877,19 @@ const file_pb_signaling_proto_rawDesc = "" +
 	"\x0eis_provisioned\x18\x01 \x01(\bR\risProvisioned\x12*\n" +
 	"\x11hmac_access_token\x18\x02 \x01(\tR\x0fhmacAccessToken\x12\x1f\n" +
 	"\vstatus_code\x18\x03 \x01(\rR\n" +
-	"statusCode\"\xc0\x01\n" +
+	"statusCode\"\xb3\x01\n" +
 	"\x13UpdateLimitsRequest\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
-	"\x10operator_peer_id\x18\x02 \x01(\tR\x0eoperatorPeerId\x126\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1b\n" +
+	"\tjwt_token\x18\x02 \x01(\tR\bjwtToken\x126\n" +
 	"\x17extend_duration_seconds\x18\x03 \x01(\x03R\x15extendDurationSeconds\x12.\n" +
 	"\x13increment_max_peers\x18\x04 \x01(\x05R\x11incrementMaxPeers\"q\n" +
 	"\x14UpdateLimitsResponse\x12\x1d\n" +
 	"\n" +
 	"is_updated\x18\x01 \x01(\bR\tisUpdated\x12:\n" +
-	"\x19current_remaining_seconds\x18\x02 \x01(\x03R\x17currentRemainingSeconds\"\xd7\x01\n" +
+	"\x19current_remaining_seconds\x18\x02 \x01(\x03R\x17currentRemainingSeconds\"\xca\x01\n" +
 	"\x13ControlFramePayload\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
-	"\x10operator_peer_id\x18\x02 \x01(\tR\x0eoperatorPeerId\x12$\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1b\n" +
+	"\tjwt_token\x18\x02 \x01(\tR\bjwtToken\x12$\n" +
 	"\x0etarget_peer_id\x18\x03 \x01(\tR\ftargetPeerId\x12!\n" +
 	"\fcommand_type\x18\x04 \x01(\tR\vcommandType\x124\n" +
 	"\x16pause_duration_seconds\x18\x05 \x01(\x03R\x14pauseDurationSeconds\"6\n" +
@@ -671,7 +911,10 @@ const file_pb_signaling_proto_rawDesc = "" +
 	"\n" +
 	"suggestion\x18\x01 \x01(\tR\n" +
 	"suggestion\x12\x19\n" +
-	"\bis_found\x18\x02 \x01(\bR\aisFound2\xeb\x01\n" +
+	"\bis_found\x18\x02 \x01(\bR\aisFound2\x8f\x01\n" +
+	"\x14AuthenticationBridge\x126\n" +
+	"\x0fLoginSubscriber\x12\x10.pb.LoginRequest\x1a\x11.pb.LoginResponse\x12?\n" +
+	"\x14GetSubscriberProfile\x12\x12.pb.ProfileRequest\x1a\x13.pb.ProfileResponse2\xeb\x01\n" +
 	"\x14MediaSignalingBridge\x12E\n" +
 	"\x14CreateConferenceRoom\x12\x15.pb.RoomConfigRequest\x1a\x16.pb.RoomConfigResponse\x12E\n" +
 	"\x10UpdateRoomLimits\x12\x17.pb.UpdateLimitsRequest\x1a\x18.pb.UpdateLimitsResponse\x12E\n" +
@@ -692,34 +935,42 @@ func file_pb_signaling_proto_rawDescGZIP() []byte {
 	return file_pb_signaling_proto_rawDescData
 }
 
-var file_pb_signaling_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_pb_signaling_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_pb_signaling_proto_goTypes = []any{
-	(*RoomConfigRequest)(nil),     // 0: pb.RoomConfigRequest
-	(*RoomConfigResponse)(nil),    // 1: pb.RoomConfigResponse
-	(*UpdateLimitsRequest)(nil),   // 2: pb.UpdateLimitsRequest
-	(*UpdateLimitsResponse)(nil),  // 3: pb.UpdateLimitsResponse
-	(*ControlFramePayload)(nil),   // 4: pb.ControlFramePayload
-	(*ControlFrameAck)(nil),       // 5: pb.ControlFrameAck
-	(*ChatMessagePayload)(nil),    // 6: pb.ChatMessagePayload
-	(*ChatMessageAck)(nil),        // 7: pb.ChatMessageAck
-	(*T9QueryRequest)(nil),        // 8: pb.T9QueryRequest
-	(*T9QueryResponse)(nil),       // 9: pb.T9QueryResponse
-	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
+	(*LoginRequest)(nil),          // 0: pb.LoginRequest
+	(*LoginResponse)(nil),         // 1: pb.LoginResponse
+	(*ProfileRequest)(nil),        // 2: pb.ProfileRequest
+	(*ProfileResponse)(nil),       // 3: pb.ProfileResponse
+	(*RoomConfigRequest)(nil),     // 4: pb.RoomConfigRequest
+	(*RoomConfigResponse)(nil),    // 5: pb.RoomConfigResponse
+	(*UpdateLimitsRequest)(nil),   // 6: pb.UpdateLimitsRequest
+	(*UpdateLimitsResponse)(nil),  // 7: pb.UpdateLimitsResponse
+	(*ControlFramePayload)(nil),   // 8: pb.ControlFramePayload
+	(*ControlFrameAck)(nil),       // 9: pb.ControlFrameAck
+	(*ChatMessagePayload)(nil),    // 10: pb.ChatMessagePayload
+	(*ChatMessageAck)(nil),        // 11: pb.ChatMessageAck
+	(*T9QueryRequest)(nil),        // 12: pb.T9QueryRequest
+	(*T9QueryResponse)(nil),       // 13: pb.T9QueryResponse
+	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
 }
 var file_pb_signaling_proto_depIdxs = []int32{
-	10, // 0: pb.ChatMessageAck.timestamp:type_name -> google.protobuf.Timestamp
-	0,  // 1: pb.MediaSignalingBridge.CreateConferenceRoom:input_type -> pb.RoomConfigRequest
-	2,  // 2: pb.MediaSignalingBridge.UpdateRoomLimits:input_type -> pb.UpdateLimitsRequest
-	4,  // 3: pb.MediaSignalingBridge.BroadcastControlFrame:input_type -> pb.ControlFramePayload
-	6,  // 4: pb.ChatHistoryBridge.IngestChatMessage:input_type -> pb.ChatMessagePayload
-	8,  // 5: pb.ChatHistoryBridge.QueryT9Autocomplete:input_type -> pb.T9QueryRequest
-	1,  // 6: pb.MediaSignalingBridge.CreateConferenceRoom:output_type -> pb.RoomConfigResponse
-	3,  // 7: pb.MediaSignalingBridge.UpdateRoomLimits:output_type -> pb.UpdateLimitsResponse
-	5,  // 8: pb.MediaSignalingBridge.BroadcastControlFrame:output_type -> pb.ControlFrameAck
-	7,  // 9: pb.ChatHistoryBridge.IngestChatMessage:output_type -> pb.ChatMessageAck
-	9,  // 10: pb.ChatHistoryBridge.QueryT9Autocomplete:output_type -> pb.T9QueryResponse
-	6,  // [6:11] is the sub-list for method output_type
-	1,  // [1:6] is the sub-list for method input_type
+	14, // 0: pb.ChatMessageAck.timestamp:type_name -> google.protobuf.Timestamp
+	0,  // 1: pb.AuthenticationBridge.LoginSubscriber:input_type -> pb.LoginRequest
+	2,  // 2: pb.AuthenticationBridge.GetSubscriberProfile:input_type -> pb.ProfileRequest
+	4,  // 3: pb.MediaSignalingBridge.CreateConferenceRoom:input_type -> pb.RoomConfigRequest
+	6,  // 4: pb.MediaSignalingBridge.UpdateRoomLimits:input_type -> pb.UpdateLimitsRequest
+	8,  // 5: pb.MediaSignalingBridge.BroadcastControlFrame:input_type -> pb.ControlFramePayload
+	10, // 6: pb.ChatHistoryBridge.IngestChatMessage:input_type -> pb.ChatMessagePayload
+	12, // 7: pb.ChatHistoryBridge.QueryT9Autocomplete:input_type -> pb.T9QueryRequest
+	1,  // 8: pb.AuthenticationBridge.LoginSubscriber:output_type -> pb.LoginResponse
+	3,  // 9: pb.AuthenticationBridge.GetSubscriberProfile:output_type -> pb.ProfileResponse
+	5,  // 10: pb.MediaSignalingBridge.CreateConferenceRoom:output_type -> pb.RoomConfigResponse
+	7,  // 11: pb.MediaSignalingBridge.UpdateRoomLimits:output_type -> pb.UpdateLimitsResponse
+	9,  // 12: pb.MediaSignalingBridge.BroadcastControlFrame:output_type -> pb.ControlFrameAck
+	11, // 13: pb.ChatHistoryBridge.IngestChatMessage:output_type -> pb.ChatMessageAck
+	13, // 14: pb.ChatHistoryBridge.QueryT9Autocomplete:output_type -> pb.T9QueryResponse
+	8,  // [8:15] is the sub-list for method output_type
+	1,  // [1:8] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
 	1,  // [1:1] is the sub-list for extension extendee
 	0,  // [0:1] is the sub-list for field type_name
@@ -736,9 +987,9 @@ func file_pb_signaling_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pb_signaling_proto_rawDesc), len(file_pb_signaling_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   14,
 			NumExtensions: 0,
-			NumServices:   2,
+			NumServices:   3,
 		},
 		GoTypes:           file_pb_signaling_proto_goTypes,
 		DependencyIndexes: file_pb_signaling_proto_depIdxs,

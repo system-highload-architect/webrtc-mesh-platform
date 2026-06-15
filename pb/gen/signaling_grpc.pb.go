@@ -19,6 +19,154 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	AuthenticationBridge_LoginSubscriber_FullMethodName      = "/pb.AuthenticationBridge/LoginSubscriber"
+	AuthenticationBridge_GetSubscriberProfile_FullMethodName = "/pb.AuthenticationBridge/GetSubscriberProfile"
+)
+
+// AuthenticationBridgeClient is the client API for AuthenticationBridge service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// AuthenticationBridge управляет учетными записями и сессиями JWT
+type AuthenticationBridgeClient interface {
+	// Авторизация пользователя и выдача защищенного b2b JWT токена
+	LoginSubscriber(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
+	// Получить профиль пользователя из ScyllaDB (SPR)
+	GetSubscriberProfile(ctx context.Context, in *ProfileRequest, opts ...grpc.CallOption) (*ProfileResponse, error)
+}
+
+type authenticationBridgeClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewAuthenticationBridgeClient(cc grpc.ClientConnInterface) AuthenticationBridgeClient {
+	return &authenticationBridgeClient{cc}
+}
+
+func (c *authenticationBridgeClient) LoginSubscriber(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LoginResponse)
+	err := c.cc.Invoke(ctx, AuthenticationBridge_LoginSubscriber_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authenticationBridgeClient) GetSubscriberProfile(ctx context.Context, in *ProfileRequest, opts ...grpc.CallOption) (*ProfileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ProfileResponse)
+	err := c.cc.Invoke(ctx, AuthenticationBridge_GetSubscriberProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AuthenticationBridgeServer is the server API for AuthenticationBridge service.
+// All implementations must embed UnimplementedAuthenticationBridgeServer
+// for forward compatibility.
+//
+// AuthenticationBridge управляет учетными записями и сессиями JWT
+type AuthenticationBridgeServer interface {
+	// Авторизация пользователя и выдача защищенного b2b JWT токена
+	LoginSubscriber(context.Context, *LoginRequest) (*LoginResponse, error)
+	// Получить профиль пользователя из ScyllaDB (SPR)
+	GetSubscriberProfile(context.Context, *ProfileRequest) (*ProfileResponse, error)
+	mustEmbedUnimplementedAuthenticationBridgeServer()
+}
+
+// UnimplementedAuthenticationBridgeServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedAuthenticationBridgeServer struct{}
+
+func (UnimplementedAuthenticationBridgeServer) LoginSubscriber(context.Context, *LoginRequest) (*LoginResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LoginSubscriber not implemented")
+}
+func (UnimplementedAuthenticationBridgeServer) GetSubscriberProfile(context.Context, *ProfileRequest) (*ProfileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetSubscriberProfile not implemented")
+}
+func (UnimplementedAuthenticationBridgeServer) mustEmbedUnimplementedAuthenticationBridgeServer() {}
+func (UnimplementedAuthenticationBridgeServer) testEmbeddedByValue()                              {}
+
+// UnsafeAuthenticationBridgeServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to AuthenticationBridgeServer will
+// result in compilation errors.
+type UnsafeAuthenticationBridgeServer interface {
+	mustEmbedUnimplementedAuthenticationBridgeServer()
+}
+
+func RegisterAuthenticationBridgeServer(s grpc.ServiceRegistrar, srv AuthenticationBridgeServer) {
+	// If the following call panics, it indicates UnimplementedAuthenticationBridgeServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&AuthenticationBridge_ServiceDesc, srv)
+}
+
+func _AuthenticationBridge_LoginSubscriber_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LoginRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthenticationBridgeServer).LoginSubscriber(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthenticationBridge_LoginSubscriber_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthenticationBridgeServer).LoginSubscriber(ctx, req.(*LoginRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthenticationBridge_GetSubscriberProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthenticationBridgeServer).GetSubscriberProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthenticationBridge_GetSubscriberProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthenticationBridgeServer).GetSubscriberProfile(ctx, req.(*ProfileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// AuthenticationBridge_ServiceDesc is the grpc.ServiceDesc for AuthenticationBridge service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var AuthenticationBridge_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "pb.AuthenticationBridge",
+	HandlerType: (*AuthenticationBridgeServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "LoginSubscriber",
+			Handler:    _AuthenticationBridge_LoginSubscriber_Handler,
+		},
+		{
+			MethodName: "GetSubscriberProfile",
+			Handler:    _AuthenticationBridge_GetSubscriberProfile_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "pb/signaling.proto",
+}
+
+const (
 	MediaSignalingBridge_CreateConferenceRoom_FullMethodName  = "/pb.MediaSignalingBridge/CreateConferenceRoom"
 	MediaSignalingBridge_UpdateRoomLimits_FullMethodName      = "/pb.MediaSignalingBridge/UpdateRoomLimits"
 	MediaSignalingBridge_BroadcastControlFrame_FullMethodName = "/pb.MediaSignalingBridge/BroadcastControlFrame"
@@ -30,11 +178,11 @@ const (
 //
 // MediaSignalingBridge управляет Control Plane плоскостью WebRTC Mesh комнат
 type MediaSignalingBridgeClient interface {
-	// Инициализировать комнату конференции модератором (Часть 3)
+	// Инициализировать комнату конференции модератором
 	CreateConferenceRoom(ctx context.Context, in *RoomConfigRequest, opts ...grpc.CallOption) (*RoomConfigResponse, error)
-	// Продлить время жизни сессии или увеличить лимит участников (Часть 3)
+	// Продлить время жизни сессии или увеличить лимит участников
 	UpdateRoomLimits(ctx context.Context, in *UpdateLimitsRequest, opts ...grpc.CallOption) (*UpdateLimitsResponse, error)
-	// Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban, Pause) (Часть 1 & 3)
+	// Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban, Pause)
 	BroadcastControlFrame(ctx context.Context, in *ControlFramePayload, opts ...grpc.CallOption) (*ControlFrameAck, error)
 }
 
@@ -82,11 +230,11 @@ func (c *mediaSignalingBridgeClient) BroadcastControlFrame(ctx context.Context, 
 //
 // MediaSignalingBridge управляет Control Plane плоскостью WebRTC Mesh комнат
 type MediaSignalingBridgeServer interface {
-	// Инициализировать комнату конференции модератором (Часть 3)
+	// Инициализировать комнату конференции модератором
 	CreateConferenceRoom(context.Context, *RoomConfigRequest) (*RoomConfigResponse, error)
-	// Продлить время жизни сессии или увеличить лимит участников (Часть 3)
+	// Продлить время жизни сессии или увеличить лимит участников
 	UpdateRoomLimits(context.Context, *UpdateLimitsRequest) (*UpdateLimitsResponse, error)
-	// Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban, Pause) (Часть 1 & 3)
+	// Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban, Pause)
 	BroadcastControlFrame(context.Context, *ControlFramePayload) (*ControlFrameAck, error)
 	mustEmbedUnimplementedMediaSignalingBridgeServer()
 }
@@ -215,11 +363,11 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// ChatHistoryBridge полностью изолирует асинхронный аналитический слой чата (Часть 2)
+// ChatHistoryBridge полностью изолирует асинхронный аналитический слой чата
 type ChatHistoryBridgeClient interface {
-	// Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь (Часть 2)
+	// Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь
 	IngestChatMessage(ctx context.Context, in *ChatMessagePayload, opts ...grpc.CallOption) (*ChatMessageAck, error)
-	// Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K) (Часть 2)
+	// Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K)
 	QueryT9Autocomplete(ctx context.Context, in *T9QueryRequest, opts ...grpc.CallOption) (*T9QueryResponse, error)
 }
 
@@ -255,11 +403,11 @@ func (c *chatHistoryBridgeClient) QueryT9Autocomplete(ctx context.Context, in *T
 // All implementations must embed UnimplementedChatHistoryBridgeServer
 // for forward compatibility.
 //
-// ChatHistoryBridge полностью изолирует асинхронный аналитический слой чата (Часть 2)
+// ChatHistoryBridge полностью изолирует асинхронный аналитический слой чата
 type ChatHistoryBridgeServer interface {
-	// Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь (Часть 2)
+	// Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь
 	IngestChatMessage(context.Context, *ChatMessagePayload) (*ChatMessageAck, error)
-	// Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K) (Часть 2)
+	// Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K)
 	QueryT9Autocomplete(context.Context, *T9QueryRequest) (*T9QueryResponse, error)
 	mustEmbedUnimplementedChatHistoryBridgeServer()
 }
