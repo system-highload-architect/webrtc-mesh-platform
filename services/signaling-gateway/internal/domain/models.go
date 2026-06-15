@@ -15,5 +15,6 @@ type VideoRoom struct {
 	IsPaused        bool                    `json:"is_paused"`
 	ActiveSpeakerID string                  `json:"active_speaker_id"`
 	Peers           map[string]*PeerSession `json:"peers"`
+	ChatHistory     []map[string]any        `json:"chat_history"`
 	CreatedAt       time.Time               `json:"created_at"`
 }

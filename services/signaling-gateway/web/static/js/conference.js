@@ -46,7 +46,13 @@ export function initConference(roomID, peerID, tokenStr, initQuality, initMic, i
 }
 
 function handleIncomingSignal(msg, initQuality, initMic, initCam) {
-    // ФИЧА №19 (ГОТОВО): Если прилетел вектор отрисовки стрелки от модератора — мгновенно рендерим
+    if (msg.type === "chat_history_dump") {
+        msg.logs.forEach(logFrame => {
+            appendChatMsg(logFrame.sender_id, logFrame.text);
+        });
+        return;
+    }
+    
     if (msg.type === "draw_vector") {
         renderIncomingVector(msg);
         return;
