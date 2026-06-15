@@ -4,11 +4,38 @@
     <meta charset="UTF-8">
     <title>📱 WebRTC Mesh — Вход сотрудников</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #000;
+        }
+        .preview-box {
+            background: #000;
+            border: 2px dashed #4299e1;
+            border-radius: 4px;
+            height: 160px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+    </style>
 </head>
 <body>
-    <div style="max-width: 600px; margin: 60px auto; background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 30px;">
+    <div style="max-width: 600px; margin: 40px auto; background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 30px;">
         <h3 style="color: #4299e1; margin-top: 0; font-family: monospace;">📱 Вход в конференцию (Join Room Gateway)</h3>
-        <p style="color: #8b949e; font-size: 13px; margin-bottom: 24px;">Инициализация WebRTC Mesh периметра. Настройте состояние устройств на старте сессии.</p>
+        <p style="color: #8b949e; font-size: 13px; margin-bottom: 20px;">Инициализация WebRTC Mesh периметра. Настройте состояние устройств на старте сессии.</p>
+
+        <!-- 🔥 ЖИВОЕ ПРЕВЬЮ КАМЕРЫ НА СТАРТЕ (User Plane Preview API) -->
+        <div class="preview-box">
+            <span class="badge" style="color: #4299e1; z-index: 5;">📹 ПРЕДПРОСМОТР УСТРОЙСТВА</span>
+            <video id="join-preview-stream" autoplay playsinline muted></video>
+            <div style="position: absolute; bottom: 10px; color: #6e7681; font-size: 11px; z-index: 5;" id="preview-status">Запрос доступа к камере...</div>
+        </div>
 
         <!-- РАЗДЕЛ 1: СВЯЗЫВАНИЕ JWT И ПАСПОРТА ЛИЧНОСТИ -->
         <div style="background: #0d1117; padding: 16px; border: 1px solid #30363d; border-radius: 4px; margin-bottom: 20px;">
@@ -33,7 +60,7 @@
                     <input type="checkbox" id="start-mic" checked style="width: auto; accent-color: #4299e1;"> 🎙️ Включить микрофон
                 </label>
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" id="start-video" checked style="width: auto; accent-color: #4299e1;"> 📹 Включить камеру
+                    <input type="checkbox" id="start-video" checked style="width: auto; accent-color: #4299e1;" id="toggle-cam-checkbox"> 📹 Включить камеру
                 </label>
             </div>
         </div>
@@ -43,9 +70,34 @@
         </button>
     </div>
 
-    <!-- Нативный импорт ESM логики страницы join -->
     <script type="module">
         import { initJoinPage } from '/static/js/join.js';
+        
+        // Включаем аппаратный захват превью-видео при загрузке страницы входа
+        let activeStream = null;
+        navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360 }, audio: false })
+        .then(stream => {
+            activeStream = stream;
+            const previewVideo = document.getElementById('join-preview-stream');
+            previewVideo.srcObject = stream;
+            document.getElementById('preview-status').innerText = "✅ Оборудование готово к b2b-трансляции";
+        })
+        .catch(err => {
+            document.getElementById('preview-status').innerText = "⚠️ Камера отключена или занята процессом";
+        });
+
+        // Слушаем чекбокс гашения камеры, чтобы мгновенно тушить превью на UI
+        document.getElementById('start-video').onchange = (e) => {
+            const previewVideo = document.getElementById('join-preview-stream');
+            if(!e.target.checked && activeStream) {
+                activeStream.getTracks().forEach(track => track.stop());
+                previewVideo.srcObject = null;
+                document.getElementById('preview-status').innerText = "❌ Камера выключена пользователем";
+            } else {
+                window.location.reload(); // Переинициализируем поток
+            }
+        };
+
         initJoinPage();
     </script>
 </body>

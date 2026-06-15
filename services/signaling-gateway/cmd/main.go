@@ -4,6 +4,8 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"webrtc-mesh-platform/internal/chassis/config"
@@ -34,7 +36,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// 3. Запускаем фоновые b2b-воркеры (Пакетный логер чата, Каскадный LRU кэш, Экспоненциальный Бэкофф) (Req. 4)
+	// 3. Запускаем фоновые b2b-воркеры (Пакетный логер чата, Каскадный LRU кэш, Экспоненциальный Бэкофф)
 	signalingCore.StartChatBatchWorker(ctx)
 	signalingCore.StartBackgroundJanitors(ctx)
 
@@ -48,10 +50,20 @@ func main() {
 	}
 	go func() { _ = server.Serve(listener) }()
 
-	// 5. ВЗВОДИМ HTTP РУТИНГ И СТРОГОЕ ВЕРСИОНИРОВАНИЕ API V1
+	// 5. ДИНАМИЧЕСКИЙ АНАЛИЗ ПУТЕЙ СТАТИКИ (Ликвидация 404 ошибок верстки)
+	// Находим абсолютный путь запуска процесса для точной привязки папки web
+	basePath, _ := os.Getwd()
+	staticDir := filepath.Join(basePath, "web")
+
+	// Фолбэк на случай, если запуск произведен непосредственно из папки cmd/
+	if _, err := os.Stat(filepath.Join(staticDir, "index.html")); os.IsNotExist(err) {
+		staticDir = filepath.Join(basePath, "services", "signaling-gateway", "web")
+	}
+	log.Info("Паттерн деплоя -> Корневой каталог ассетов определен как: %s", staticDir)
+
 	mux := http.NewServeMux()
 
-	// v1 Эндпоинт WebSocket Сигнализации комнат, модерации и P2P-векторных стрелок Canvas (Req. 3 & 5)
+	// v1 Эндпоинт WebSocket Сигнализации комнат, модерации и P2P-векторных стрелок Canvas
 	mux.HandleFunc("/api/v1/ws", func(w http.ResponseWriter, r *http.Request) {
 		roomID := r.URL.Query().Get("room")
 		peerID := r.URL.Query().Get("peer")
@@ -68,16 +80,14 @@ func main() {
 			return
 		}
 
-		// Нативно прокидываем коннект в слой декомпозированной модерации
 		signalingCore.HandleWsSignal(roomID, peerID, conn, isMod)
 	})
 
-	// v1 Эндпоинт Прямого наносекундного поиска Т9 подсказок по префиксному дереву Trie (Req. 4)
+	// v1 Эндпоинт Прямого наносекундного поиска Т9 подсказок по префиксному дереву Trie
 	mux.HandleFunc("/api/v1/t9", func(w http.ResponseWriter, r *http.Request) {
 		prefix := r.URL.Query().Get("prefix")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 
-		// Прямой вызов нашего наносекундного Trie-дерева без сетевого gRPC оверхеда
 		suggestion, found := signalingCore.QueryT9Autocomplete(context.Background(), prefix)
 		if found {
 			_, _ = w.Write([]byte(suggestion))
@@ -93,18 +103,27 @@ func main() {
 		sender := r.URL.Query().Get("sender")
 		text := r.URL.Query().Get("text")
 
-		// Прямой вызов Core-фильтрации, CAS-лимитера и буферизации лога в Go-канале
 		sanitizedText, _ := signalingCore.ProcessIncomingMessage(room, sender, text)
 		_, _ = w.Write([]byte(sanitizedText))
 	})
 
-	// Раздача статических ассетов (CSS, JS, Swagger) из изолированной папки web/static/
-	fileServer := http.FileServer(http.Dir("web/static"))
+	// Пуленепробиваемая раздача статических ассетов (CSS, JS, Swagger) через абсолютные пути
+	fileServer := http.FileServer(http.Dir(filepath.Join(staticDir, "static")))
 	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
 
-	// Раздача корневого индексного файла интерфейса из web/
+	// Раздача страниц Multi-Page роутинга из изолированного каталога
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "web/index.html")
+		targetFile := filepath.Join(staticDir, "index.html")
+
+		if r.URL.Path == "/join.html" {
+			targetFile = filepath.Join(staticDir, "join.html")
+		} else if r.URL.Path == "/conference.html" {
+			targetFile = filepath.Join(staticDir, "conference.html")
+		} else if r.URL.Path == "/redirect.html" {
+			targetFile = filepath.Join(staticDir, "redirect.html")
+		}
+
+		http.ServeFile(w, r, targetFile)
 	})
 
 	log.Info("🌐 Интерактивный Web-интерфейс API v1 доступен по адресу: http://localhost:8081")
