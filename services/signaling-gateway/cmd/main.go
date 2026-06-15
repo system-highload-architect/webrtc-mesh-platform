@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net"
 	"net/http"
 	"os"
@@ -82,6 +83,16 @@ func main() {
 		}
 
 		signalingCore.HandleWsSignal(roomID, peerID, conn, isMod)
+	})
+
+	// v1 Эндпоинт выдачи инфраструктурных STUN/TURN конфигураций Coturn для обхода NAT
+	mux.HandleFunc("/api/v1/ice-config", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+
+		iceConfig := signalingCore.FetchIceServersConfig()
+		jsonBytes, _ := json.Marshal(iceConfig)
+		_, _ = w.Write(jsonBytes)
 	})
 
 	// v1 Эндпоинт Прямого наносекундного поиска Т9 подсказок

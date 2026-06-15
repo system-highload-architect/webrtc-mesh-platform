@@ -10,5 +10,7 @@ import (
 type RoomManagerEngine interface {
 	CreateRoom(ctx context.Context, roomID string, maxPeers int32) (string, error)
 	HandleWsSignal(roomID, peerID string, ws *websocket.Conn, isModerator bool)
+	UpdateRoomLimits(ctx context.Context, roomID string, extendSeconds int64, newMaxPeers int32) error
+	MutateSdpQuality(rawSdp string, lowBandwidth bool) string
 	BroadcastControlMessage(ctx context.Context, roomID string, cmd string, targetPeer string) error
 }
