@@ -1,0 +1,5 @@
+service_name: "webrtc-signaling-gateway"
+log_level: "info"
+bind_addr: ":50055"       # Персональный gRPC-порт шлюза сигнализации
+shutdown_timeout: 5      # Секунды на Graceful Shutdown операции
+room_capacity_limit: 1000 # Предельный лимит комнат на ноду кластера
