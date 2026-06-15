@@ -2,7 +2,10 @@ module webrtc-mesh-platform/services/signaling-gateway
 
 go 1.25.0
 
-require google.golang.org/grpc v1.81.1
+require (
+	github.com/gorilla/websocket v1.5.3
+	google.golang.org/grpc v1.81.1
+)
 
 require (
 	golang.org/x/net v0.51.0 // indirect

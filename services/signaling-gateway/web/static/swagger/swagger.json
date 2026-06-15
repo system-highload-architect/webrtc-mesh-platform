@@ -1,0 +1,54 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "🏛️ WebRTC Mesh Platform API v1",
+    "description": "Промышленная спецификация интерфейсов сигнального шлюза комнат, наносекундного Т9 автодополнения на префиксных деревьях Trie и асинхронного пакетного чата.",
+    "version": "1.0.0"
+  },
+  "host": "localhost:8081",
+  "basePath": "/api/v1",
+  "schemes": ["http", "ws"],
+  "paths": {
+    "/ws": {
+      "get": {
+        "summary": "Full-Duplex WebSocket Сигнализационный Шлюз комнат",
+        "description": "Терминирует постоянное соединение, проксирует SDP/ICE WebRTC метаданные и обрабатывает Control Frames модерации.",
+        "parameters": [
+          { "name": "room", "in": "query", "required": true, "type": "string", "description": "Уникальный ID комнаты конференции" },
+          { "name": "peer", "in": "query", "required": true, "type": "string", "description": "Уникальный ID участника (Peer ID)" },
+          { "name": "mod", "in": "query", "required": true, "type": "boolean", "description": "Флаг b2b-прав модератора (валидируется HMAC подписью)" }
+        ],
+        "responses": {
+          "101": { "description": "Switching Protocols. Соединение успешно переведено в WebSocket Full-Duplex режим." }
+        }
+      }
+    },
+    "/t9": {
+      "get": {
+        "summary": "Наносекундный предиктивный Т9-поиск по префиксному дереву Trie",
+        "description": "Принимает сырой префикс, на лету исправляет ошибочную раскладку клавиатуры и возвращает подсказку за O(K) времени.",
+        "parameters": [
+          { "name": "prefix", "in": "query", "required": true, "type": "string", "description": "Введенный пользователем префикс слова (например, 'ghb' или 'при')" }
+        ],
+        "responses": {
+          "200": { "description": "Строка-подсказка автодополнения слова (Например: 'привет')", "type": "string" },
+          "404": { "description": "Совпадений в Trie-дереве не обнаружено" }
+        }
+      }
+    },
+    "/chat/send": {
+      "get": {
+        "summary": "Прокси-эндпоинт санитизации и инжекта сообщений в пакетный логер",
+        "description": "Отрезает строку до 1000 рун, экранирует HTML от XSS, оборачивает ссылки в Safe Redirect прокси и пушит фрейм в Go-канал.",
+        "parameters": [
+          { "name": "room", "in": "query", "required": true, "type": "string" },
+          { "name": "sender", "in": "query", "required": true, "type": "string" },
+          { "name": "text", "in": "query", "required": true, "type": "string", "description": "Сырой текст сообщения" }
+        ],
+        "responses": {
+          "200": { "description": "Успешная буферизация. Возвращает очищенный от уязвимостей текст.", "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+body { background: #0d1117; color: #c9d1d9; font-family: monospace; padding: 20px; }
+.grid { display: flex; gap: 20px; }
+.panel { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 20px; width: 50%; }
+.video-box { background: #000; border: 2px solid #319795; border-radius: 4px; height: 180px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; position: relative; }
+.video-box.paused { filter: brightness(0.3) blur(2px); border-color: #ecc94b; }
+.badge { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 2px 6px; font-size: 11px; border-radius: 3px; }
+.btn { background: #21262d; border: 1px solid #f0f6fc1f; color: #c9d1d9; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+.btn-mod { border-color: #319795; color: #319795; }
+.chat-area { height: 200px; overflow-y: auto; background: #0d1117; border: 1px solid #30363d; padding: 10px; margin-bottom: 10px; border-radius: 4px; }
+.input-group { position: relative; display: flex; }
+input[type="text"] { background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; width: 100%; border-radius: 4px; font-family: monospace; }
+.t9-hint { position: absolute; left: 11px; top: 11px; color: #8892b0; pointer-events: none; white-space: pre; }

@@ -2,10 +2,13 @@ package app
 
 import (
 	"context"
+
+	"github.com/gorilla/websocket"
 )
 
-// RoomManagerEngine задает b2b-контракт для управления стейтом WebRTC Mesh комнат
+// RoomManagerEngine описывает строгий b2b-контракт для тестов и абстракции
 type RoomManagerEngine interface {
 	CreateRoom(ctx context.Context, roomID string, maxPeers int32) (string, error)
+	HandleWsSignal(roomID, peerID string, ws *websocket.Conn, isModerator bool)
 	BroadcastControlMessage(ctx context.Context, roomID string, cmd string, targetPeer string) error
 }
