@@ -31,7 +31,7 @@ export function initConference(roomID, tokenStr, initQuality, initMic, initCam, 
 
     // 2. Подключаем версионированный v1 WebSocket сигнального шлюза
     ws = new WebSocket(`ws://${window.location.host}/api/v1/ws?room=${roomID}&token=${tokenStr}`);
-    window.ws = ws;
+    window.ws = ws; // ФИКС: Выносим дескриптор в область видимости шасси для drawing.js!
 
     ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
