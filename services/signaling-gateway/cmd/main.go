@@ -4,7 +4,7 @@ import (
 	"net"
 	"time"
 
-	"webrtc-mesh-platform/internal/chassis/config"
+	"webrtc-mesh-platform/internal/chassis/config" // ПОДКЛЮЧАЕМ ЕДИНОЕ ШАССИ КОМПАНИИ
 	"webrtc-mesh-platform/internal/pkg/logger"
 	"webrtc-mesh-platform/internal/pkg/shutdown"
 	"webrtc-mesh-platform/pb/gen"
@@ -15,21 +15,17 @@ import (
 )
 
 func main() {
-	// 1. Инициализируем локальный контур конфигурации и structured логер
-	cfg := config.LoadConfig("services/signaling-gateway/config.yaml")
+	// Инициализируем конфигурацию из универсального шасси
+	cfg := config.LoadGlobalConfig("services/signaling-gateway/config.yaml")
 	log := logger.NewAppLogger(cfg.ServiceName, cfg.LogLevel)
 	log.Info("Инициализация WebSocket/gRPC Шлюза Сигнализации Комнат WebRTC...")
 
-	// 2. Взводим Use-Case слой ядра (32-way Map Sharding + Trie T9 Engine)
 	var signalingCore app.RoomManagerEngine = app.NewSignalingService()
-
-	// 3. Собираем gRPC-транспорт, прокидывая локальный доменный сервис
 	grpcHandler := transport.NewGrpcHandler(signalingCore)
 
 	server := grpc.NewServer()
 	gen.RegisterMediaSignalingBridgeServer(server, grpcHandler)
 
-	// 4. Открываем сетевой сокет на прослушивание порта :50055
 	listener, err := net.Listen("tcp", cfg.BindAddr)
 	if err != nil {
 		log.Fatal("Не удалось открыть сетевой gRPC-порт %s: %v", cfg.BindAddr, err)
@@ -42,6 +38,5 @@ func main() {
 		}
 	}()
 
-	// 5. Передаем управление Graceful Shutdown диспетчеру компании
 	shutdown.ListenSignals(log, server, time.Duration(cfg.ShutdownTimeout)*time.Second)
 }

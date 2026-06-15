@@ -6,28 +6,29 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type BaseConfig struct {
-	ServiceName     string `yaml:"service_name"`
-	LogLevel        string `yaml:"log_level"`
-	BindAddr        string `yaml:"bind_addr"`
-	ShutdownTimeout int    `yaml:"shutdown_timeout"`
+// GlobalConfig описывает эталонную промышленную матрицу настроек для всего WebRTC-кластера
+type GlobalConfig struct {
+	ServiceName       string `yaml:"service_name"`
+	LogLevel          string `yaml:"log_level"`
+	BindAddr          string `yaml:"bind_addr"`
+	ShutdownTimeout   int    `yaml:"shutdown_timeout"`
+	RoomCapacityLimit int    `yaml:"room_capacity_limit"` // Специфично для signaling-gateway (лимит 1000 комнат)
+	DataDiskPath      string `yaml:"data_disk_path"`      // Специфично для chat-history-service (NVMe сегменты)
 }
 
-type Config struct {
-	BaseConfig        `yaml:",inline"`
-	RoomCapacityLimit int `yaml:"room_capacity_limit"`
-}
-
-func LoadConfig(path string) *Config {
-	cfg := &Config{
+// LoadGlobalConfig атомарно читает YAML-профиль с диска по переданному b2b-пути
+func LoadGlobalConfig(path string) *GlobalConfig {
+	cfg := &GlobalConfig{
+		ServiceName:       "webrtc-generic-node",
+		BindAddr:          ":50050",
+		ShutdownTimeout:   5,
 		RoomCapacityLimit: 1000,
+		DataDiskPath:      "data/chat_history_segments",
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		cfg.ServiceName = "webrtc-signaling-gateway"
-		cfg.BindAddr = ":50055"
-		cfg.ShutdownTimeout = 5
+		// Если файл не найден на диске, возвращаем безопасный дефолтный профиль
 		return cfg
 	}
 
