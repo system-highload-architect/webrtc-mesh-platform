@@ -3,9 +3,10 @@ package app
 import (
 	"context"
 	"fmt"
-	"math"
 	"runtime"
 	"time"
+
+	"webrtc-mesh-platform/internal/pkg/backoff" // ПОДКЛЮЧАЕМ ОБЩИЙ БЭКОФФ ШАССИ
 )
 
 // StartBackgroundJanitors запускает фоновые b2b-конвейеры мониторинга таймаутов и бэкоффа
@@ -43,7 +44,6 @@ func (s *SignalingService) StartBackgroundJanitors(ctx context.Context) {
 	}()
 }
 
-// evictIdleRoomsCascade реализует ленивое каскадное сжатие хвоста RAM-памяти на базе LRU
 func (s *SignalingService) evictIdleRoomsCascade() {
 	evictedCount := 0
 	now := time.Now()
@@ -53,7 +53,6 @@ func (s *SignalingService) evictIdleRoomsCascade() {
 
 		shard.mu.Lock()
 		for roomID, room := range shard.rooms {
-			// Если в комнате нет ни одного пользователя более 30 минут — удаляем её из LRU кэша за O(1)
 			if len(room.Peers) == 0 && now.Sub(room.CreatedAt) > 30*time.Minute {
 				shard.lruCache.Remove(roomID)
 				delete(shard.rooms, roomID)
@@ -65,14 +64,17 @@ func (s *SignalingService) evictIdleRoomsCascade() {
 	}
 
 	if evictedCount > 0 {
-		s.log.Info("ПАТТЕРН ДАВИДА -> Нативно вытеснено %d пустых комнат из LRU-хвоста. Вызов runtime.GC().", evictedCount)
+		s.log.Info("ПАТТЕРН -> Нативно вытеснено %d пустых комнат из LRU-хвоста. Вызов runtime.GC().", evictedCount)
 		runtime.GC()
 	}
 }
 
-// monitorIdleRoomsBackoff шлет STIMULUS_ALERT модератору с экспоненциальной задержкой
+// monitorIdleRoomsBackoff шлет STIMULUS_ALERT модератору с экспоненциальной задержкой из pkg шасси
 func (s *SignalingService) monitorIdleRoomsBackoff(ctx context.Context) {
 	now := time.Now()
+
+	// Инициализируем наш общий b2b-бэкофф: базовый шаг 1 минута, макс задержка 15 минут
+	backoffEngine := backoff.NewExponentialBackoff(1*time.Minute, 15*time.Minute)
 
 	for i := uint32(0); i < s.shardCount; i++ {
 		shard := s.shards[i]
@@ -84,7 +86,8 @@ func (s *SignalingService) monitorIdleRoomsBackoff(ctx context.Context) {
 
 				go func(rID string) {
 					for attempt := 1; attempt <= 4; attempt++ {
-						backoffDuration := time.Duration(math.Pow(2, float64(attempt))) * time.Minute
+						// ВЫЗЫВАЕМ ОБЩИЙ АЛГОРИТМ ИЗ ШАССИ С ДЖИТТЕРОМ (Req. 4)
+						backoffDuration := backoffEngine.CalculateDelay(attempt)
 
 						select {
 						case <-ctx.Done():
@@ -120,7 +123,7 @@ func (s *SignalingService) isRoomStillIdle(roomID string) bool {
 	shard.mu.RLock()
 	defer shard.mu.RUnlock()
 
-	_, exists := shard.lruCache.Get(roomID) // Валидируем по индексу кэша
+	_, exists := shard.lruCache.Get(roomID)
 	return exists
 }
 
