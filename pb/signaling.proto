@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "webrtc-mesh-platform/pb/gen;gen";
+
+// MediaSignalingBridge управляет Control Plane плоскостью WebRTC Mesh комнат
+service MediaSignalingBridge {
+    // Инициализировать комнату конференции модератором
+    rpc CreateConferenceRoom(RoomConfigRequest) returns (RoomConfigResponse);
+    
+    // Валидация HMAC-токена и пароля при входе участника
+    rpc AuthenticatePeer(PeerAuthRequest) returns (PeerAuthResponse);
+    
+    // Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban)
+    rpc BroadcastControlFrame(ControlFramePayload) returns (ControlFrameAck);
+}
+
+message RoomConfigRequest {
+    string room_id = 1;
+    string pass_phrase = 2;
+    int32 max_subscribers = 3;
+    int64 duration_seconds = 4;
+}
+
+message RoomConfigResponse {
+    bool is_provisioned = 1;
+    string hmac_access_token = 2;
+    uint32 status_code = 3; // 2001 - Success
+}
+
+message PeerAuthRequest {
+    string room_id = 1;
+    string peer_id = 2;
+    string access_token = 3;
+}
+
+message PeerAuthResponse {
+    bool is_allowed = 1;
+    string allocated_ice_server = 2;
+}
+
+message ControlFramePayload {
+    string room_id = 1;
+    string operator_peer_id = 2; // ID модератора
+    string target_peer_id = 3;   // Жертва (кого глушим или баним)
+    string command_type = 4;     // "MUTE_AUDIO", "STOP_VIDEO", "KICK"
+}
+
+message ControlFrameAck {
+    bool is_dispatched = 1;
+}
