@@ -7,7 +7,7 @@ let startY = 0;
 /**
  * initDrawingEngine инициализирует b2b-контур векторного рисования стрелок поверх холста (Req. 3)
  */
-export function initDrawingEngine(canvasId, ws, isModerator) {
+export function initDrawingEngine(canvasId, isModerator) {
     canvas = document.getElementById(canvasId);
     if (!canvas) return;
     ctx = canvas.getContext('2d');
@@ -51,16 +51,13 @@ export function initDrawingEngine(canvasId, ws, isModerator) {
         const endY = e.clientY - rect.top;
 
         // ВЫСТРЕЛИВАЕМ ВЕКТОРНЫЕ КООРДИНАТЫ В WEBSOCKET (Control Plane Routing)
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-                type: "sdp_offer", // Переиспользуем медиа-мост для веерной рассылки дата-фреймов
-                target_peer_id: "User_Guest", // Веерно пушим всем участникам
-                draw_vector: {
-                    x1: startX, y1: startY,
-                    x2: endX, y2: endY,
-                    color: "#ecc94b",
-                    width: 3
-                }
+        if (window.ws && window.ws.readyState === WebSocket.OPEN) {
+            window.ws.send(JSON.stringify({
+                type: "draw_vector", // Отправляем тип события рисования
+                x1: startX, y1: startY,
+                x2: endX, y2: endY,
+                color: "#ecc94b",
+                width: 3
             }));
         }
     };
@@ -77,7 +74,7 @@ export function renderIncomingVector(vector) {
 function drawArrowOnCanvas(x1, y1, x2, y2, color, width) {
     if (!ctx) return;
     
-    // Очищаем старое превью перед финальной фиксацией (Опционально для чистых стрелок)
+    // Очищаем старое превью перед финальной фиксацией линии
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.strokeStyle = color;

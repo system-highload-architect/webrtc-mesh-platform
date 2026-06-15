@@ -7,103 +7,66 @@
 </head>
 <body>
     <div style="max-width: 800px; margin: 40px auto; background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 30px;">
-        <h2 style="color: #319795; margin-top: 0;">🏛️ WebRTC P2P Mesh Enterprise Console</h2>
+        <h2 style="color: #319795; margin-top: 0; font-family: monospace;">🏛️ WebRTC P2P Mesh Enterprise Console</h2>
         <p style="color: #8b949e; font-size: 13px;">Панель инициализации зашифрованных комнат, JWT-авторизации и администрирования инфраструктуры.</p>
         
-        <!-- БЛОК 1: КРИПТОГРАФИЧЕСКИЙ JWT ВХОД ЛИЧНОСТИ -->
-        <div id="auth-section" style="border-bottom: 1px solid #30363d; padding-bottom: 24px; margin-bottom: 24px;">
-            <h4 style="color: #e2e8f0; margin-bottom: 12px;">🔑 Авторизация в системе (Subscriber JWT Login)</h4>
+        <!-- РАЗДЕЛ 1: КРИПТОГРАФИЧЕСКИЙ JWT ВХОД ЛИЧНОСТИ -->
+        <div style="border-bottom: 1px solid #30363d; padding-bottom: 24px; margin-bottom: 24px;">
+            <h4 style="color: #e2e8f0; margin-bottom: 12px; margin-top: 0;">🔑 Авторизация в системе (Subscriber JWT Login)</h4>
             <div style="display: flex; gap: 12px;">
-                <input type="text" id="auth-email" placeholder="Email (например, david@clearway.ru)" style="background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; border-radius: 4px; flex: 1;">
-                <input type="password" id="auth-password" placeholder="Пароль" style="background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; border-radius: 4px; flex: 1;">
-                <button class="btn" style="border-color: #319795; color: #319795;" onclick="performLogin()">Войти</button>
+                <input type="text" id="auth-email" placeholder="Email (например, david@clearway.ru)">
+                <input type="password" id="auth-password" placeholder="Пароль">
+                <button class="btn btn-mod" id="login-btn-action">Войти</button>
             </div>
-            <div id="auth-status" style="margin-top: 8px; font-size: 12px; color: #ecc94b;">Статус: Требуется авторизация</div>
+            <div id="auth-status" style="margin-top: 8px; font-size: 12px; color: #ecc94b; font-weight: bold;">Статус: Требуется авторизация</div>
         </div>
 
-        <!-- БЛОК 2: НАСТРОЙКА И ИНИЦИАЛИЗАЦИЯ КОНФЕРЕНЦИИ -->
+        <!-- РАЗДЕЛ 2: НАСТРОЙКА И ИНИЦИАЛИЗАЦИЯ КОНФЕРЕНЦИИ -->
         <div id="setup-section" style="display: none;">
-            <h4 style="color: #e2e8f0; margin-bottom: 12px;">⚙️ Параметры новой b2b-конференции</h4>
+            <h4 style="color: #e2e8f0; margin-bottom: 12px; margin-top: 0;">⚙️ Параметры новой b2b-конференции</h4>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                 <div>
-                    <label style="font-size: 12px; color: #8b949e;">ID Комнаты:</label>
-                    <input type="text" id="room-id" value="clearway_pki_session" style="background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; width: 100%; box-sizing: border-box; border-radius: 4px; margin-top: 4px;">
+                    <label style="font-size: 11px; color: #8b949e; font-weight: bold;">ID Комнаты:</label>
+                    <input type="text" id="room-id" value="clearway_pki_session" style="margin-top: 4px;">
                 </div>
                 <div>
-                    <label style="font-size: 12px; color: #8b949e;">Макс. участников (до 100):</label>
-                    <input type="number" id="max-peers" value="100" max="100" style="background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; width: 100%; box-sizing: border-box; border-radius: 4px; margin-top: 4px;">
+                    <label style="font-size: 11px; color: #8b949e; font-weight: bold;">Макс. участников (до 100):</label>
+                    <input type="number" id="max-peers" value="100" max="100" style="margin-top: 4px;">
                 </div>
                 <div>
-                    <label style="font-size: 12px; color: #8b949e;">Время сессии (минут):</label>
-                    <input type="number" id="duration" value="60" style="background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; width: 100%; box-sizing: border-box; border-radius: 4px; margin-top: 4px;">
+                    <label style="font-size: 11px; color: #8b949e; font-weight: bold;">Время сессии (минут):</label>
+                    <input type="number" id="duration" value="60" style="margin-top: 4px;">
                 </div>
                 <div>
-                    <label style="font-size: 12px; color: #8b949e;">Email сотрудников для инвайта:</label>
-                    <input type="text" id="invite-emails" placeholder="konstantin@clearway.ru, team@small.ru" style="background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; width: 100%; box-sizing: border-box; border-radius: 4px; margin-top: 4px;">
+                    <label style="font-size: 11px; color: #8b949e; font-weight: bold;">Email сотрудников для инвайта:</label>
+                    <input type="text" id="invite-emails" placeholder="konstantin@clearway.ru, team@small.ru" style="margin-top: 4px;">
                 </div>
             </div>
-            <button class="btn" style="background: #319795; color: #0d1117; border: none; width: 100%; padding: 12px; font-size: 14px;" onclick="provisionConference()">
+            <button class="btn" style="background: #319795; color: #0d1117; border: none; width: 100%; padding: 12px; font-size: 14px; font-weight: bold;" id="provision-btn-action">
                 🚀 Скомпилировать и запустить распределенный Mesh-контур
             </button>
         </div>
         
-        <!-- БЛОК 3: ИНВЕЙТ-ПАНЕЛЬ ВЫДАЧИ ССЫЛОК -->
+        <!-- РАЗДЕЛ 3: ИНВЕЙТ-ПАНЕЛЬ ВЫДАЧИ ССЫЛОК -->
         <div id="invite-section" style="display: none; margin-top: 24px; border-top: 1px solid #30363d; padding-top: 24px;">
-            <h4 style="color: #ecc94b; margin-bottom: 12px;">🔗 Контур успешно взведен в RAM! Ссылки доступа:</h4>
+            <h4 style="color: #ecc94b; margin-bottom: 12px; margin-top: 0;">🔗 Контур успешно взведен в RAM! Ссылки доступа:</h4>
             <div style="background: #0d1117; padding: 15px; border-radius: 4px; border: 1px solid #30363d;">
-                <p style="font-size: 12px; margin-top: 0;"><b>1. Ваша персональная ссылка (Владелец/Модератор):</b></p>
-                <input type="text" id="mod-link" readonly style="width: 100%; background: #161b22; border: 1px solid #30363d; color: #319795; padding: 8px; font-family: monospace; font-size: 12px; border-radius: 4px;">
+                <p style="font-size: 12px; margin-top: 0; color: #8b949e;"><b>1. Ваша персональная ссылка (Владелец/Модератор):</b></p>
+                <input type="text" id="mod-link" readonly style="color: #319795; background: #161b22; font-weight: bold;">
                 
-                <p style="font-size: 12px; margin-top: 14px;"><b>2. Ссылка для сотрудников (Участники):</b></p>
-                <input type="text" id="peer-link" readonly style="width: 100%; background: #161b22; border: 1px solid #30363d; color: #4299e1; padding: 8px; font-family: monospace; font-size: 12px; border-radius: 4px;">
+                <p style="font-size: 12px; margin-top: 14px; color: #8b949e;"><b>2. Ссылка для сотрудников (Участники):</b></p>
+                <input type="text" id="peer-link" readonly style="color: #4299e1; background: #161b22; font-weight: bold;">
             </div>
-            <div style="margin-top: 16px; display: flex; gap: 12px;">
-                <button class="btn" style="border-color: #319795; color: #319795;" onclick="openAsModerator()">🎬 Войти как Модератор</button>
+            <div style="margin-top: 16px;">
+                <button class="btn btn-mod" id="enter-mod-btn-action">🎬 Войти в созданную конференцию</button>
             </div>
         </div>
     </div>
 
-    <script>
-        let globalJwtToken = "";
-
-        function performLogin() {
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-            const statusEl = document.getElementById('auth-status');
-
-            // Симулируем b2b-вызов к нашему auth-service. В реальном проде шлюз проксирует это по gRPC
-            // Для локального теста делаем заглушку, которая вызовет REST v1
-            if(email === "david@clearway.ru" && password === "admin123") {
-                globalJwtToken = "header.payload_david_organizer_claims.signature"; // Имитируем токен
-                statusEl.innerText = "✅ Авторизован: Давид (Роль: ORGANIZER)";
-                statusEl.style.color = "#319795";
-                document.getElementById('setup-section').style.display = "block";
-            } else if(email === "konstantin@clearway.ru" && password === "user123") {
-                globalJwtToken = "header.payload_konstantin_employee_claims.signature";
-                statusEl.innerText = "✅ Авторизован: Константин (Роль: EMPLOYEE)";
-                statusEl.style.color = "#4299e1";
-                document.getElementById('setup-section').style.display = "block";
-            } else {
-                statusEl.innerText = "❌ Ошибка: Неверный Email или Пароль";
-                statusEl.style.color = "#e53e3e";
-            }
-        }
-
-        function provisionConference() {
-            const room = document.getElementById('room-id').value;
-            if(!room) return alert("Введите ID комнаты");
-
-            const host = window.location.host;
-            // Прописываем пути к нашим раздельным страницам
-            document.getElementById('mod-link').value = `http://${host}/conference.html?room=${room}&token=${globalJwtToken}`;
-            document.getElementById('peer-link').value = `http://${host}/join.html?room=${room}`;
-            document.getElementById('invite-section').style.display = "block";
-        }
-
-        function openAsModerator() {
-            const link = document.getElementById('mod-link').value;
-            if(link) window.location.href = link;
-        }
+    <!-- Нативное ESM-склеивание логики главной страницы -->
+    <script type="module">
+        import { initIndexPage } from '/static/js/index.js';
+        initIndexPage();
     </script>
 </body>
 </html>
