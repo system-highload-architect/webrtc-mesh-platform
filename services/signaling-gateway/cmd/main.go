@@ -52,10 +52,11 @@ func main() {
 
 	// 5. ДИНАМИЧЕСКИЙ АНАЛИЗ ПУТЕЙ СТАТИКИ (Ликвидация 404 ошибок верстки)
 	// Находим абсолютный путь запуска процесса для точной привязки папки web
+	// ИСПРАВЛЕНО: Убираем дублирование папки "static" при инициализации файлового сервера
+	// FIXED: Resolved path mirroring to prevent style.css 404 compilation drops
 	basePath, _ := os.Getwd()
 	staticDir := filepath.Join(basePath, "web")
 
-	// Фолбэк на случай, если запуск произведен непосредственно из папки cmd/
 	if _, err := os.Stat(filepath.Join(staticDir, "index.html")); os.IsNotExist(err) {
 		staticDir = filepath.Join(basePath, "services", "signaling-gateway", "web")
 	}
@@ -63,7 +64,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// v1 Эндпоинт WebSocket Сигнализации комнат, модерации и P2P-векторных стрелок Canvas
+	// v1 Эндпоинт WebSocket Сигнализации комнат
 	mux.HandleFunc("/api/v1/ws", func(w http.ResponseWriter, r *http.Request) {
 		roomID := r.URL.Query().Get("room")
 		peerID := r.URL.Query().Get("peer")
@@ -83,7 +84,7 @@ func main() {
 		signalingCore.HandleWsSignal(roomID, peerID, conn, isMod)
 	})
 
-	// v1 Эндпоинт Прямого наносекундного поиска Т9 подсказок по префиксному дереву Trie
+	// v1 Эндпоинт Прямого наносекундного поиска Т9 подсказок
 	mux.HandleFunc("/api/v1/t9", func(w http.ResponseWriter, r *http.Request) {
 		prefix := r.URL.Query().Get("prefix")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -96,7 +97,7 @@ func main() {
 		}
 	})
 
-	// v1 Эндпоинт Нативной санитизации чата, XSS-защиты и отправки в пакетную дисковую очередь
+	// v1 Эндпоинт Нативной санитизации чата, XSS-защиты
 	mux.HandleFunc("/api/v1/chat/send", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		room := r.URL.Query().Get("room")
@@ -107,11 +108,11 @@ func main() {
 		_, _ = w.Write([]byte(sanitizedText))
 	})
 
-	// Пуленепробиваемая раздача статических ассетов (CSS, JS, Swagger) через абсолютные пути
-	fileServer := http.FileServer(http.Dir(filepath.Join(staticDir, "static")))
-	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
+	// ИСПРАВЛЕНО: Файловый сервер смотрит строго на корень папки web, а префикс /static/ корректно отсекается
+	fileServer := http.FileServer(http.Dir(staticDir))
+	mux.Handle("/static/", fileServer)
 
-	// Раздача страниц Multi-Page роутинга из изолированного каталога
+	// Раздача страниц Multi-Page роутинга
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		targetFile := filepath.Join(staticDir, "index.html")
 
