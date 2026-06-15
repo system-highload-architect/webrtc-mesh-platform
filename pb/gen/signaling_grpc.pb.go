@@ -205,3 +205,147 @@ var MediaSignalingBridge_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "pb/signaling.proto",
 }
+
+const (
+	ChatHistoryBridge_IngestChatMessage_FullMethodName   = "/pb.ChatHistoryBridge/IngestChatMessage"
+	ChatHistoryBridge_QueryT9Autocomplete_FullMethodName = "/pb.ChatHistoryBridge/QueryT9Autocomplete"
+)
+
+// ChatHistoryBridgeClient is the client API for ChatHistoryBridge service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type ChatHistoryBridgeClient interface {
+	// Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь
+	IngestChatMessage(ctx context.Context, in *ChatMessagePayload, opts ...grpc.CallOption) (*ChatMessageAck, error)
+	// Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K)
+	QueryT9Autocomplete(ctx context.Context, in *T9QueryRequest, opts ...grpc.CallOption) (*T9QueryResponse, error)
+}
+
+type chatHistoryBridgeClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewChatHistoryBridgeClient(cc grpc.ClientConnInterface) ChatHistoryBridgeClient {
+	return &chatHistoryBridgeClient{cc}
+}
+
+func (c *chatHistoryBridgeClient) IngestChatMessage(ctx context.Context, in *ChatMessagePayload, opts ...grpc.CallOption) (*ChatMessageAck, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChatMessageAck)
+	err := c.cc.Invoke(ctx, ChatHistoryBridge_IngestChatMessage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chatHistoryBridgeClient) QueryT9Autocomplete(ctx context.Context, in *T9QueryRequest, opts ...grpc.CallOption) (*T9QueryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(T9QueryResponse)
+	err := c.cc.Invoke(ctx, ChatHistoryBridge_QueryT9Autocomplete_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ChatHistoryBridgeServer is the server API for ChatHistoryBridge service.
+// All implementations must embed UnimplementedChatHistoryBridgeServer
+// for forward compatibility.
+type ChatHistoryBridgeServer interface {
+	// Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь
+	IngestChatMessage(context.Context, *ChatMessagePayload) (*ChatMessageAck, error)
+	// Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K)
+	QueryT9Autocomplete(context.Context, *T9QueryRequest) (*T9QueryResponse, error)
+	mustEmbedUnimplementedChatHistoryBridgeServer()
+}
+
+// UnimplementedChatHistoryBridgeServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedChatHistoryBridgeServer struct{}
+
+func (UnimplementedChatHistoryBridgeServer) IngestChatMessage(context.Context, *ChatMessagePayload) (*ChatMessageAck, error) {
+	return nil, status.Error(codes.Unimplemented, "method IngestChatMessage not implemented")
+}
+func (UnimplementedChatHistoryBridgeServer) QueryT9Autocomplete(context.Context, *T9QueryRequest) (*T9QueryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method QueryT9Autocomplete not implemented")
+}
+func (UnimplementedChatHistoryBridgeServer) mustEmbedUnimplementedChatHistoryBridgeServer() {}
+func (UnimplementedChatHistoryBridgeServer) testEmbeddedByValue()                           {}
+
+// UnsafeChatHistoryBridgeServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ChatHistoryBridgeServer will
+// result in compilation errors.
+type UnsafeChatHistoryBridgeServer interface {
+	mustEmbedUnimplementedChatHistoryBridgeServer()
+}
+
+func RegisterChatHistoryBridgeServer(s grpc.ServiceRegistrar, srv ChatHistoryBridgeServer) {
+	// If the following call panics, it indicates UnimplementedChatHistoryBridgeServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&ChatHistoryBridge_ServiceDesc, srv)
+}
+
+func _ChatHistoryBridge_IngestChatMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChatMessagePayload)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatHistoryBridgeServer).IngestChatMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChatHistoryBridge_IngestChatMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatHistoryBridgeServer).IngestChatMessage(ctx, req.(*ChatMessagePayload))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ChatHistoryBridge_QueryT9Autocomplete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(T9QueryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatHistoryBridgeServer).QueryT9Autocomplete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChatHistoryBridge_QueryT9Autocomplete_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatHistoryBridgeServer).QueryT9Autocomplete(ctx, req.(*T9QueryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// ChatHistoryBridge_ServiceDesc is the grpc.ServiceDesc for ChatHistoryBridge service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var ChatHistoryBridge_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "pb.ChatHistoryBridge",
+	HandlerType: (*ChatHistoryBridgeServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "IngestChatMessage",
+			Handler:    _ChatHistoryBridge_IngestChatMessage_Handler,
+		},
+		{
+			MethodName: "QueryT9Autocomplete",
+			Handler:    _ChatHistoryBridge_QueryT9Autocomplete_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "pb/signaling.proto",
+}

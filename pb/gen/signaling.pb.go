@@ -7,12 +7,11 @@
 package gen
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -374,6 +373,222 @@ func (x *ControlFrameAck) GetIsDispatched() bool {
 	return false
 }
 
+type ChatMessagePayload struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	SenderId      string                 `protobuf:"bytes,2,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
+	MessageText   string                 `protobuf:"bytes,3,opt,name=message_text,json=messageText,proto3" json:"message_text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChatMessagePayload) Reset() {
+	*x = ChatMessagePayload{}
+	mi := &file_pb_signaling_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChatMessagePayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChatMessagePayload) ProtoMessage() {}
+
+func (x *ChatMessagePayload) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_signaling_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChatMessagePayload.ProtoReflect.Descriptor instead.
+func (*ChatMessagePayload) Descriptor() ([]byte, []int) {
+	return file_pb_signaling_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ChatMessagePayload) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *ChatMessagePayload) GetSenderId() string {
+	if x != nil {
+		return x.SenderId
+	}
+	return ""
+}
+
+func (x *ChatMessagePayload) GetMessageText() string {
+	if x != nil {
+		return x.MessageText
+	}
+	return ""
+}
+
+type ChatMessageAck struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MessageId     string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	SanitizedText string                 `protobuf:"bytes,2,opt,name=sanitized_text,json=sanitizedText,proto3" json:"sanitized_text,omitempty"`
+	ContainsUrl   bool                   `protobuf:"varint,3,opt,name=contains_url,json=containsUrl,proto3" json:"contains_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChatMessageAck) Reset() {
+	*x = ChatMessageAck{}
+	mi := &file_pb_signaling_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChatMessageAck) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChatMessageAck) ProtoMessage() {}
+
+func (x *ChatMessageAck) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_signaling_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChatMessageAck.ProtoReflect.Descriptor instead.
+func (*ChatMessageAck) Descriptor() ([]byte, []int) {
+	return file_pb_signaling_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ChatMessageAck) GetMessageId() string {
+	if x != nil {
+		return x.MessageId
+	}
+	return ""
+}
+
+func (x *ChatMessageAck) GetSanitizedText() string {
+	if x != nil {
+		return x.SanitizedText
+	}
+	return ""
+}
+
+func (x *ChatMessageAck) GetContainsUrl() bool {
+	if x != nil {
+		return x.ContainsUrl
+	}
+	return false
+}
+
+type T9QueryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Prefix        string                 `protobuf:"bytes,1,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *T9QueryRequest) Reset() {
+	*x = T9QueryRequest{}
+	mi := &file_pb_signaling_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *T9QueryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*T9QueryRequest) ProtoMessage() {}
+
+func (x *T9QueryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_signaling_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use T9QueryRequest.ProtoReflect.Descriptor instead.
+func (*T9QueryRequest) Descriptor() ([]byte, []int) {
+	return file_pb_signaling_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *T9QueryRequest) GetPrefix() string {
+	if x != nil {
+		return x.Prefix
+	}
+	return ""
+}
+
+type T9QueryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Suggestion    string                 `protobuf:"bytes,1,opt,name=suggestion,proto3" json:"suggestion,omitempty"`
+	IsFound       bool                   `protobuf:"varint,2,opt,name=is_found,json=isFound,proto3" json:"is_found,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *T9QueryResponse) Reset() {
+	*x = T9QueryResponse{}
+	mi := &file_pb_signaling_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *T9QueryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*T9QueryResponse) ProtoMessage() {}
+
+func (x *T9QueryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_signaling_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use T9QueryResponse.ProtoReflect.Descriptor instead.
+func (*T9QueryResponse) Descriptor() ([]byte, []int) {
+	return file_pb_signaling_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *T9QueryResponse) GetSuggestion() string {
+	if x != nil {
+		return x.Suggestion
+	}
+	return ""
+}
+
+func (x *T9QueryResponse) GetIsFound() bool {
+	if x != nil {
+		return x.IsFound
+	}
+	return false
+}
+
 var File_pb_signaling_proto protoreflect.FileDescriptor
 
 const file_pb_signaling_proto_rawDesc = "" +
@@ -404,11 +619,30 @@ const file_pb_signaling_proto_rawDesc = "" +
 	"\x0etarget_peer_id\x18\x03 \x01(\tR\ftargetPeerId\x12!\n" +
 	"\fcommand_type\x18\x04 \x01(\tR\vcommandType\"6\n" +
 	"\x0fControlFrameAck\x12#\n" +
-	"\ris_dispatched\x18\x01 \x01(\bR\fisDispatched2\xe3\x01\n" +
+	"\ris_dispatched\x18\x01 \x01(\bR\fisDispatched\"m\n" +
+	"\x12ChatMessagePayload\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1b\n" +
+	"\tsender_id\x18\x02 \x01(\tR\bsenderId\x12!\n" +
+	"\fmessage_text\x18\x03 \x01(\tR\vmessageText\"y\n" +
+	"\x0eChatMessageAck\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x01 \x01(\tR\tmessageId\x12%\n" +
+	"\x0esanitized_text\x18\x02 \x01(\tR\rsanitizedText\x12!\n" +
+	"\fcontains_url\x18\x03 \x01(\bR\vcontainsUrl\"(\n" +
+	"\x0eT9QueryRequest\x12\x16\n" +
+	"\x06prefix\x18\x01 \x01(\tR\x06prefix\"L\n" +
+	"\x0fT9QueryResponse\x12\x1e\n" +
+	"\n" +
+	"suggestion\x18\x01 \x01(\tR\n" +
+	"suggestion\x12\x19\n" +
+	"\bis_found\x18\x02 \x01(\bR\aisFound2\xe3\x01\n" +
 	"\x14MediaSignalingBridge\x12E\n" +
 	"\x14CreateConferenceRoom\x12\x15.pb.RoomConfigRequest\x1a\x16.pb.RoomConfigResponse\x12=\n" +
 	"\x10AuthenticatePeer\x12\x13.pb.PeerAuthRequest\x1a\x14.pb.PeerAuthResponse\x12E\n" +
-	"\x15BroadcastControlFrame\x12\x17.pb.ControlFramePayload\x1a\x13.pb.ControlFrameAckB!Z\x1fwebrtc-mesh-platform/pb/gen;genb\x06proto3"
+	"\x15BroadcastControlFrame\x12\x17.pb.ControlFramePayload\x1a\x13.pb.ControlFrameAck2\x94\x01\n" +
+	"\x11ChatHistoryBridge\x12?\n" +
+	"\x11IngestChatMessage\x12\x16.pb.ChatMessagePayload\x1a\x12.pb.ChatMessageAck\x12>\n" +
+	"\x13QueryT9Autocomplete\x12\x12.pb.T9QueryRequest\x1a\x13.pb.T9QueryResponseB!Z\x1fwebrtc-mesh-platform/pb/gen;genb\x06proto3"
 
 var (
 	file_pb_signaling_proto_rawDescOnce sync.Once
@@ -422,7 +656,7 @@ func file_pb_signaling_proto_rawDescGZIP() []byte {
 	return file_pb_signaling_proto_rawDescData
 }
 
-var file_pb_signaling_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_pb_signaling_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_pb_signaling_proto_goTypes = []any{
 	(*RoomConfigRequest)(nil),   // 0: pb.RoomConfigRequest
 	(*RoomConfigResponse)(nil),  // 1: pb.RoomConfigResponse
@@ -430,16 +664,24 @@ var file_pb_signaling_proto_goTypes = []any{
 	(*PeerAuthResponse)(nil),    // 3: pb.PeerAuthResponse
 	(*ControlFramePayload)(nil), // 4: pb.ControlFramePayload
 	(*ControlFrameAck)(nil),     // 5: pb.ControlFrameAck
+	(*ChatMessagePayload)(nil),  // 6: pb.ChatMessagePayload
+	(*ChatMessageAck)(nil),      // 7: pb.ChatMessageAck
+	(*T9QueryRequest)(nil),      // 8: pb.T9QueryRequest
+	(*T9QueryResponse)(nil),     // 9: pb.T9QueryResponse
 }
 var file_pb_signaling_proto_depIdxs = []int32{
 	0, // 0: pb.MediaSignalingBridge.CreateConferenceRoom:input_type -> pb.RoomConfigRequest
 	2, // 1: pb.MediaSignalingBridge.AuthenticatePeer:input_type -> pb.PeerAuthRequest
 	4, // 2: pb.MediaSignalingBridge.BroadcastControlFrame:input_type -> pb.ControlFramePayload
-	1, // 3: pb.MediaSignalingBridge.CreateConferenceRoom:output_type -> pb.RoomConfigResponse
-	3, // 4: pb.MediaSignalingBridge.AuthenticatePeer:output_type -> pb.PeerAuthResponse
-	5, // 5: pb.MediaSignalingBridge.BroadcastControlFrame:output_type -> pb.ControlFrameAck
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
+	6, // 3: pb.ChatHistoryBridge.IngestChatMessage:input_type -> pb.ChatMessagePayload
+	8, // 4: pb.ChatHistoryBridge.QueryT9Autocomplete:input_type -> pb.T9QueryRequest
+	1, // 5: pb.MediaSignalingBridge.CreateConferenceRoom:output_type -> pb.RoomConfigResponse
+	3, // 6: pb.MediaSignalingBridge.AuthenticatePeer:output_type -> pb.PeerAuthResponse
+	5, // 7: pb.MediaSignalingBridge.BroadcastControlFrame:output_type -> pb.ControlFrameAck
+	7, // 8: pb.ChatHistoryBridge.IngestChatMessage:output_type -> pb.ChatMessageAck
+	9, // 9: pb.ChatHistoryBridge.QueryT9Autocomplete:output_type -> pb.T9QueryResponse
+	5, // [5:10] is the sub-list for method output_type
+	0, // [0:5] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -456,9 +698,9 @@ func file_pb_signaling_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pb_signaling_proto_rawDesc), len(file_pb_signaling_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   10,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_pb_signaling_proto_goTypes,
 		DependencyIndexes: file_pb_signaling_proto_depIdxs,

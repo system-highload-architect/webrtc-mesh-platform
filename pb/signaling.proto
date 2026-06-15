@@ -50,3 +50,34 @@ message ControlFramePayload {
 message ControlFrameAck {
     bool is_dispatched = 1;
 }
+
+// Добавь в конец файла pb/signaling.proto:
+
+service ChatHistoryBridge {
+    // Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь
+    rpc IngestChatMessage(ChatMessagePayload) returns (ChatMessageAck);
+    
+    // Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K)
+    rpc QueryT9Autocomplete(T9QueryRequest) returns (T9QueryResponse);
+}
+
+message ChatMessagePayload {
+	string room_id = 1;
+	string sender_id = 2;
+	string message_text = 3;
+}
+
+message ChatMessageAck {
+	string message_id = 1;
+	string sanitized_text = 2;
+	bool contains_url = 3;
+}
+
+message T9QueryRequest {
+	string prefix = 1;
+}
+
+message T9QueryResponse {
+	string suggestion = 1;
+	bool is_found = 2;
+}

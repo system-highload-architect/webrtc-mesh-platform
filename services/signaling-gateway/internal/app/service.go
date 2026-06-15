@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"webrtc-mesh-platform/internal/pkg/trie"
 	"webrtc-mesh-platform/services/signaling-gateway/internal/domain"
 )
 
@@ -19,31 +18,27 @@ type RoomShard struct {
 	rooms map[string]*domain.VideoRoom
 }
 
+// SignalingService отвечает ИСКЛЮЧИТЕЛЬНО за Control Plane плоскость медиа-комнат (Req. 1 & 2)
 type SignalingService struct {
 	shards     []*RoomShard
 	shardCount uint32
-	t9Engine   *trie.T9PrefixEngine
-	hmacSecret []byte
+	hmacSecret []byte // Ключ для криптографической HMAC-SHA256 CSRF защиты ссылок (Req. 5)
 }
 
+// NewSignalingService инициализирует 32-сегментный распределенный менеджер WebRTC сессий
 func NewSignalingService() *SignalingService {
 	s := &SignalingService{
 		shardCount: 32,
 		shards:     make([]*RoomShard, 32),
-		t9Engine:   trie.NewT9PrefixEngine(),
 		hmacSecret: []byte("webrtc_b2b_secret_key"),
 	}
 
+	// Аллоцируем память под изолированные RAM шарды для исключения Mutex Contention
 	for i := uint32(0); i < s.shardCount; i++ {
-		s.shards[i] = &RoomShard{rooms: make(map[string]*domain.VideoRoom)}
+		s.shards[i] = &RoomShard{
+			rooms: make(map[string]*domain.VideoRoom),
+		}
 	}
-
-	// Наполняем Т9 словарь базовыми техническими b2b-терминалами для демонстрации
-	s.t9Engine.Insert("привет")
-	s.t9Engine.Insert("протокол")
-	s.t9Engine.Insert("конференция")
-	s.t9Engine.Insert("архитектура")
-	s.t9Engine.Insert("логирование")
 
 	return s
 }
@@ -76,11 +71,6 @@ func (s *SignalingService) CreateRoom(ctx context.Context, roomID string, maxPee
 	token := hex.EncodeToString(mac.Sum(nil))
 
 	return token, nil
-}
-
-// GetAutocompleteSuggestion прокидывает префикс в наше наносекундное Trie-дерево за O(K) (Req. 4)
-func (s *SignalingService) GetAutocompleteSuggestion(ctx context.Context, prefix string) (string, bool) {
-	return s.t9Engine.Search(prefix)
 }
 
 // BroadcastControlMessage управляет модерацией WebSocket фреймов комнат (Req. 1)
