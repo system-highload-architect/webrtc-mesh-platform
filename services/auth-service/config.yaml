@@ -1,0 +1,4 @@
+service_name: "webrtc-auth-service"
+log_level: "info"
+bind_addr: ":50059"               # Выделенный порт gRPC-авторизации
+shutdown_timeout: 5              # Таймаут плавного сброса при SIGTERM
