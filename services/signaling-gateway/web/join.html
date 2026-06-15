@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>🏛️ WebRTC Mesh Platform — Присоединиться к сессии</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div style="max-width: 600px; margin: 60px auto; background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 30px;">
+        <h3 style="color: #4299e1; margin-top: 0;">📱 Вход в конференцию (Join Room Gateway)</h3>
+        <p style="color: #8b949e; font-size: 13px; margin-bottom: 24px;">Инициализация WebRTC Mesh периметра. Настройте состояние устройств на старте сессии.</p>
+
+        <!-- РАЗДЕЛ 1: СВЯЗЫВАНИЕ JWT И ПАСПОРТА ЛИЧНОСТИ -->
+        <div style="background: #0d1117; padding: 16px; border: 1px solid #30363d; border-radius: 4px; margin-bottom: 20px;">
+            <label style="font-size: 12px; color: #8b949e; display: block; margin-bottom: 6px;">Учетная запись сотрудника (Email):</label>
+            <input type="text" id="employee-email" placeholder="konstantin@clearway.ru" value="konstantin@clearway.ru" style="width: 100%; box-sizing: border-box; background: #161b22; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; border-radius: 4px; font-family: monospace; margin-bottom: 12px;">
+            
+            <label style="font-size: 12px; color: #8b949e; display: block; margin-bottom: 6px;">Пароль доступа к профилю:</label>
+            <input type="password" id="employee-password" value="user123" style="width: 100%; box-sizing: border-box; background: #161b22; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; border-radius: 4px; font-family: monospace;">
+        </div>
+
+        <!-- РАЗДЕЛ 2: НАСТРОЙКА УСТРОЙСТВ И КОДЕКОВ НА СТАРТЕ -->
+        <div style="background: #0d1117; padding: 16px; border: 1px solid #30363d; border-radius: 4px; margin-bottom: 24px;">
+            <label style="font-size: 12px; color: #8b949e; display: block; margin-bottom: 8px;">Выбор начального качества видеопотока:</label>
+            <select id="video-quality" style="width: 100%; background: #161b22; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; border-radius: 4px; font-family: monospace; font-weight: bold;">
+                <option value="1080p">Full HD (1080p, Wire-Speed, 4 Mbps)</option>
+                <option value="720p" selected>HD Ready (720p, Balanced, 2 Mbps)</option>
+                <option value="360p">Low Bandwidth (360p, GC Saving, 500 Kbps)</option>
+            </select>
+
+            <div style="display: flex; gap: 20px; margin-top: 16px; font-size: 13px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="start-mic" checked> 🎙️ Включить микрофон
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="start-video" checked> 📹 Включить камеру
+                </label>
+            </div>
+        </div>
+
+        <button class="btn" id="join-btn-action" style="background: #4299e1; color: #0d1117; border: none; width: 100%; padding: 12px; font-size: 14px;">
+            🔐 Верифицировать токен и войти в контур
+        </button>
+    </div>
+
+    <!-- Нативный импорт ESM логики страницы join -->
+    <script type="module">
+        import { initJoinPage } from '/static/js/join.js';
+        initJoinPage();
+    </script>
+</body>
+</html>

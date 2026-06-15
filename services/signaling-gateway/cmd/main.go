@@ -40,6 +40,13 @@ func main() {
 	signalingCore := app.NewSignalingService(log)
 	grpcHandler := transport.NewGrpcHandler(signalingCore)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// ДОБАВЛЕНО (Req. 4): Запуск фоновых воркеров Каскадного вытеснения и Бэкоффа в памяти ноды
+	// ADDED: Launching asynchronous memory eviction and backoff janitors within node process memory
+	signalingCore.StartBackgroundJanitors(ctx)
+
 	// 4. Запускаем бинарный gRPC сервер комнат
 	server := grpc.NewServer()
 	gen.RegisterMediaSignalingBridgeServer(server, grpcHandler)
@@ -50,7 +57,7 @@ func main() {
 	}
 	go func() { _ = server.Serve(listener) }()
 
-	// 5. ВЗВОДИМ HTTP РУТИНГ И СТРОГОЕ ВЕРСИОНИРОВАНИЕ API V1
+	// 5. HTTP РУТИНГ И СТРОГОЕ ВЕРСИОНИРОВАНИЕ API V1
 	mux := http.NewServeMux()
 
 	// v1 Эндпоинт WebSocket Сигнализации с обязательной JWT-авторизацией (Req. 5)
@@ -69,7 +76,6 @@ func main() {
 			return
 		}
 
-		// Передаем управление в moderation_business.go для валидации подписи подписи
 		signalingCore.HandleWsSignal(roomID, tokenStr, conn)
 	})
 
