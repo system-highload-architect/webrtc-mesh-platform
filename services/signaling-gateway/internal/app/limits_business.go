@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
 	"webrtc-mesh-platform/services/signaling-gateway/internal/domain"
 )
 
-// UpdateRoomLimits позволяет модератору продлить конференцию или расширить слоты участников (Req. 2)
 func (s *SignalingService) UpdateRoomLimits(ctx context.Context, roomID string, extendSeconds int64, newMaxPeers int32) error {
 	idx := s.getShardIndex(roomID)
 	shard := s.shards[idx]
@@ -23,7 +23,6 @@ func (s *SignalingService) UpdateRoomLimits(ctx context.Context, roomID string, 
 	}
 	room := roomObj.(*domain.VideoRoom)
 
-	// Жесткий b2b-лимит по ТЗ: суммарное время конференции не может превышать 5 часов
 	maxDuration := 5 * time.Hour
 	currentDuration := time.Since(room.CreatedAt)
 	newTotalDuration := currentDuration + time.Duration(extendSeconds)*time.Second
@@ -32,7 +31,6 @@ func (s *SignalingService) UpdateRoomLimits(ctx context.Context, roomID string, 
 		return errors.New("cannot extend room lifecycle: total duration exceeds hard 5-hour boundary")
 	}
 
-	// Ограничение по ТЗ: не более 100 человек в одной Mesh-комнате
 	if newMaxPeers > 100 {
 		return errors.New("cannot expand room slots: peer capacity limit cannot exceed 100 participants")
 	}
@@ -45,7 +43,23 @@ func (s *SignalingService) UpdateRoomLimits(ctx context.Context, roomID string, 
 	return nil
 }
 
-// MutateSdpQuality манипулирует строками кодеков SDP контракта для авто-скалирования трафика (Req. 3)
+// IsRoomOverloadedOrPaused проверяет порог перегрузки сети в 15 человек или стейт Паузы (Req. 3)
+func (s *SignalingService) IsRoomOverloadedOrPaused(roomID string) bool {
+	idx := s.getShardIndex(roomID)
+	shard := s.shards[idx]
+
+	shard.mu.RLock()
+	defer shard.mu.RUnlock()
+
+	room, exists := shard.rooms[roomID]
+	if !exists {
+		return false
+	}
+
+	// Порог по ТЗ: если в комнате сидит больше 15 человек, либо модератор нажал Паузу
+	return len(room.Peers) > 15 || room.IsPaused
+}
+
 func (s *SignalingService) MutateSdpQuality(rawSdp string, lowBandwidth bool) string {
 	lines := strings.Split(rawSdp, "\r\n")
 	var mutatedLines []string
@@ -53,16 +67,12 @@ func (s *SignalingService) MutateSdpQuality(rawSdp string, lowBandwidth bool) st
 	for _, line := range lines {
 		mutatedLines = append(mutatedLines, line)
 
-		// Находим секцию описания видео-медиа (m=video)
 		if strings.HasPrefix(line, "m=video") {
 			if lowBandwidth {
-				// ПРИНУДИТЕЛЬНАЯ SDP МУТАЦИЯ (Req. 3): Выставляем жесткий потолок битрейта в 100 Кбит/с
-				// Это активирует режим Muted Keyframes на стороне WebRTC-стека браузеров
-				mutatedLines = append(mutatedLines, "b=AS:100") // Application Specific Bandwidth limit
-				s.log.Info("[SDP MUTATION] Контракт переведен в режим Low-Bandwidth Muted Keyframes (100 Kbps limit)")
+				// Впрыскиваем жесткий лимит битрейта кодека AS (Application Specific)
+				mutatedLines = append(mutatedLines, "b=AS:100")
 			} else {
-				// Стандартный b2b HD профиль (2000 Кбит/с)
-				mutatedLines = append(mutatedLines, "b=AS:2000")
+				mutatedLines = append(mutatedLines, "b=AS:2000") // 2 Mbps для HD
 			}
 		}
 	}

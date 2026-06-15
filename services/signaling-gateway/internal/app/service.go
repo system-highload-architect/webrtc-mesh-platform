@@ -101,3 +101,7 @@ func (s *SignalingService) BroadcastControlMessage(ctx context.Context, roomID s
 	}
 	return nil
 }
+
+func (s *SignalingService) GetAppLogger() *logger.AppLogger {
+	return s.log
+}

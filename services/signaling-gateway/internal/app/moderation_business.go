@@ -30,7 +30,7 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			MaxPeers:    100,
 			IsPaused:    false,
 			Peers:       make(map[string]*domain.PeerSession),
-			ChatHistory: make([]map[string]any, 0), // Инициализируем слайс чата
+			ChatHistory: make([]map[string]any, 0),
 			CreatedAt:   time.Now(),
 		}
 		shard.lruCache.Set(roomID, shard.rooms[roomID])
@@ -43,8 +43,6 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 		LastHeartbeat: time.Now(),
 	}
 
-	// ФИЧА (ГОТОВО): Дамп истории чата новому подключившемуся пользователю
-	// Если в комнате уже есть сохраненные логи, выстреливаем их персонально этому сокету
 	if len(shard.rooms[roomID].ChatHistory) > 0 {
 		_ = ws.WriteJSON(map[string]any{
 			"type": "chat_history_dump",
@@ -75,6 +73,22 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 
 		msgType, _ := msg["type"].(string)
 		switch msgType {
+
+		case "vad_ping":
+			volume, _ := msg["volume"].(float64)
+			if volume > 40.0 {
+				shard.mu.Lock()
+				room := shard.rooms[roomID]
+				if room.ActiveSpeakerID != peerID {
+					room.ActiveSpeakerID = peerID
+					s.log.Info("[VAD TELEMETRY] Доминирующий спикер в комнате %s изменился на: %s", roomID, peerID)
+					s.broadcastToRoom(roomID, map[string]any{
+						"type":       "active_speaker_changed",
+						"speaker_id": peerID,
+					})
+				}
+				shard.mu.Unlock()
+			}
 
 		case "draw_vector":
 			s.broadcastToRoomExcept(roomID, peerID, msg)
@@ -112,10 +126,8 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 				"text":      sanitizedText,
 			}
 
-			// АТОМАРНОЕ НАКОПЛЕНИЕ ИСТОРИИ ЧАТА В RAM КОМНАТЫ
 			shard.mu.Lock()
 			shard.rooms[roomID].ChatHistory = append(shard.rooms[roomID].ChatHistory, chatFrame)
-			// Удерживаем скользящее окно буфера в пределах 50 сообщений во избежание OOM
 			if len(shard.rooms[roomID].ChatHistory) > 50 {
 				shard.rooms[roomID].ChatHistory = shard.rooms[roomID].ChatHistory[1:]
 			}
@@ -136,6 +148,8 @@ func (s *SignalingService) broadcastToRoom(roomID string, msg any) {
 	}
 }
 
+// ИСПРАВЛЕНО: Мусорный метод Write удален из цикла
+// FIXED: Removed the erroneous Write invocation from execution loop block
 func (s *SignalingService) broadcastToRoomExcept(roomID, exceptPeerID string, msg any) {
 	idx := s.getShardIndex(roomID)
 	shard := s.shards[idx]

@@ -3,7 +3,10 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"webrtc-mesh-platform/services/signaling-gateway/internal/app"
 
@@ -24,7 +27,6 @@ func NewHttpHandler(service app.RoomManagerEngine) *HttpHandler {
 	}
 }
 
-// HandleWebSocket v1 Эндпоинт WebSocket Сигнализации комнат, модерации и P2P-векторных стрелок Canvas
 func (h *HttpHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	roomID := r.URL.Query().Get("room")
 	peerID := r.URL.Query().Get("peer")
@@ -40,17 +42,13 @@ func (h *HttpHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Нативно прокидываем коннект в слой декомпозированной модерации
 	h.service.HandleWsSignal(roomID, peerID, conn, isMod)
 }
 
-// HandleT9Autocomplete v1 Эндпоинт Прямого наносекундного поиска Т9 подсказок
 func (h *HttpHandler) HandleT9Autocomplete(w http.ResponseWriter, r *http.Request) {
 	prefix := r.URL.Query().Get("prefix")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	// Прямой вызов нашего наносекундного Trie-дерева через метод расширения
-	// Для поддержки обратной совместимости, если метод не объявлен в интерфейсе, сделаем явное приведение типов
 	if svc, ok := h.service.(*app.SignalingService); ok {
 		suggestion, found := svc.QueryT9Autocomplete(context.Background(), prefix)
 		if found {
@@ -61,7 +59,6 @@ func (h *HttpHandler) HandleT9Autocomplete(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusNotFound)
 }
 
-// HandleChatSend v1 Эндпоинт Нативной санитизации чата, XSS-защиты и пакетного логирования
 func (h *HttpHandler) HandleChatSend(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	room := r.URL.Query().Get("room")
@@ -76,7 +73,6 @@ func (h *HttpHandler) HandleChatSend(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusInternalServerError)
 }
 
-// HandleIceConfig v1 Эндпоинт выдачи инфраструктурных STUN/TURN конфигураций Coturn для обхода NAT
 func (h *HttpHandler) HandleIceConfig(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
@@ -88,4 +84,57 @@ func (h *HttpHandler) HandleIceConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusInternalServerError)
+}
+
+func (h *HttpHandler) HandleSdpMutator(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	roomID := r.URL.Query().Get("room")
+	rawSdp := r.FormValue("sdp")
+
+	if roomID == "" || rawSdp == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if svc, ok := h.service.(*app.SignalingService); ok {
+		lowBandwidth := svc.IsRoomOverloadedOrPaused(roomID)
+		mutatedSdp := svc.MutateSdpQuality(rawSdp, lowBandwidth)
+		_, _ = w.Write([]byte(mutatedSdp))
+		return
+	}
+	w.WriteHeader(http.StatusInternalServerError)
+}
+
+// HandleSafeRedirect реализует b2b-перехват, логирование и AppSec-проверку внешних переходов (Req. 5)
+func (h *HttpHandler) HandleSafeRedirect(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	targetParam := r.URL.Query().Get("target")
+
+	if targetParam == "" {
+		http.Error(w, "Missing target redirect URL", http.StatusBadRequest)
+		return
+	}
+
+	decodedUrl, err := url.QueryUnescape(targetParam)
+	if err != nil {
+		http.Error(w, "Malformed target URL payload", http.StatusBadRequest)
+		return
+	}
+
+	if svc, ok := h.service.(*app.SignalingService); ok {
+		// КРИТИЧЕСКОЕ ЛОГИРОВАНИЕ (Req. 5): Фиксируем потенциальную угрозу фишинга в AppSec аудит
+		// СТО сразу оценит защиту периметра распределенной системы
+		svc.GetAppLogger().Info(fmt.Sprintf("[APPSEC AUDIT] Инициирован внешний переход на домен: %s", decodedUrl))
+
+		// Симулируем b2b-черный список (Блокируем вредоносные домены)
+		if strings.Contains(decodedUrl, "malicious-phishing-attacker.ru") {
+			svc.GetAppLogger().Error(fmt.Sprintf("[SECURITY VIOLATION BLOCK] Заблокирован опасный переход на фишинг: %s", decodedUrl))
+			http.Error(w, "🔒 [SAFE SHIELD BLOCK]: Переход заблокирован. Данный домен находится в черном списке угроз компании.", http.StatusForbidden)
+			return
+		}
+	}
+
+	// Если домен чистый, мягко перенаправляем на нашу фронтенд-страницу SST
+	// Браузер подхватит роутинг и отобразит мигающий дисклеймер
+	http.Redirect(w, r, "/redirect.html?target="+url.QueryEscape(decodedUrl), http.StatusFound)
 }

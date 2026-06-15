@@ -64,6 +64,8 @@ func main() {
 	mux.HandleFunc("/api/v1/t9", httpHandler.HandleT9Autocomplete)
 	mux.HandleFunc("/api/v1/chat/send", httpHandler.HandleChatSend)
 	mux.HandleFunc("/api/v1/ice-config", httpHandler.HandleIceConfig)
+	mux.HandleFunc("/api/v1/sdp/mutate", httpHandler.HandleSdpMutator)
+	mux.HandleFunc("/api/v1/redirect", httpHandler.HandleSafeRedirect)
 
 	// Раздача статических ассетов через абсолютные пути
 	fileServer := http.FileServer(http.Dir(filepath.Join(staticDir, "static")))
