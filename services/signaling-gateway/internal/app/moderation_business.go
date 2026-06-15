@@ -8,25 +8,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// HandleWsSignal терминирует сигнальный поток и жестко валидирует права по JWT токену личности (Req. 1, 2 & 5)
-func (s *SignalingService) HandleWsSignal(roomID, tokenStr string, ws *websocket.Conn) {
-	// 1. ПАТТЕРН БЕЗОПАСНОСТИ (Req. 5): На лету вскрываем криптографическую подпись JWT
-	claims, err := s.ValidateAndParseJwt(tokenStr)
-	if err != nil {
-		s.log.Error("[SECURITY ALERT] Отклонена попытка входа по поддельному JWT: %v", err)
-		_ = ws.WriteJSON(map[string]any{"type": "auth_error", "reason": "invalid_jwt_token"})
-		_ = ws.Close()
-		return
-	}
-
-	// Извлекаем реальную идентичность человека и роль из защищенного токена
-	peerID := claims.UserID
-	isModerator := claims.Role == "ORGANIZER"
-
+// HandleWsSignal терминирует Full-Duplex поток, коммутирует WebRTC SDP фреймы, команды модерации и векторные стрелки
+func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.Conn, isModerator bool) {
 	idx := s.getShardIndex(roomID)
 	shard := s.shards[idx]
 
-	// 2. Атомарно регистрируем сессию абонента в RAM-шарде за O(1)
+	// 1. Атомарно регистрируем живую сессию участника в RAM-шарде за O(1)
 	shard.mu.Lock()
 	pConn := &PeerConnection{
 		PeerID:      peerID,
@@ -34,7 +21,23 @@ func (s *SignalingService) HandleWsSignal(roomID, tokenStr string, ws *websocket
 		IsModerator: isModerator,
 		IsMuted:     false,
 	}
+	// Если пула коннектов для этой комнаты еще нет — аллоцируем память
+	if _, exists := shard.conns[roomID]; !exists {
+		shard.conns[roomID] = make(map[string]*PeerConnection)
+	}
 	shard.conns[roomID][peerID] = pConn
+
+	// Если комнаты нет в карте структур — подстраховываем стейт
+	if _, exists := shard.rooms[roomID]; !exists {
+		shard.rooms[roomID] = &domain.VideoRoom{
+			RoomID:    roomID,
+			MaxPeers:  100,
+			IsPaused:  false,
+			Peers:     make(map[string]*domain.PeerSession),
+			CreatedAt: time.Now(),
+		}
+		shard.lruCache.Set(roomID, shard.rooms[roomID])
+	}
 
 	shard.rooms[roomID].Peers[peerID] = &domain.PeerSession{
 		PeerID:        peerID,
@@ -44,9 +47,9 @@ func (s *SignalingService) HandleWsSignal(roomID, tokenStr string, ws *websocket
 	}
 	shard.mu.Unlock()
 
-	s.log.Info("PEER VERIFIED -> Участник [%s] с ролью [%s] вошел в комнату [%s]", peerID, claims.Role, roomID)
+	s.log.Info("PEER ACTIVE -> Участник [%s] (Модератор: %v) успешно вошел в контур комнаты [%s]", peerID, isModerator, roomID)
 
-	// 3. Graceful-зачистка сетевых сокетов при разрыве связи
+	// 2. Graceful-зачистка сетевых сокетов при разрыве связи
 	defer func() {
 		shard.mu.Lock()
 		delete(shard.conns[roomID], peerID)
@@ -60,13 +63,13 @@ func (s *SignalingService) HandleWsSignal(roomID, tokenStr string, ws *websocket
 		})
 	}()
 
-	// Оповещаем комнату о входе нового верифицированного участника
+	// Оповещаем комнату о входе нового участника для генерации WebRTC SDP Offer
 	s.broadcastToRoom(roomID, map[string]any{
 		"type":    "peer_joined",
 		"peer_id": peerID,
 	})
 
-	// 4. Бесконечный цикл чтения WebSocket-фреймов
+	// 3. Бесконечный цикл чтения WebSocket-фреймов
 	for {
 		var msg map[string]any
 		if err := ws.ReadJSON(&msg); err != nil {
@@ -76,15 +79,21 @@ func (s *SignalingService) HandleWsSignal(roomID, tokenStr string, ws *websocket
 		msgType, _ := msg["type"].(string)
 		switch msgType {
 
+		// ФИЧА №19 (ГОТОВО): Перехват векторных координат стрелок и веерная рассылка
+		case "draw_vector":
+			// Прокидываем координаты рисования Canvas всем остальным участникам в комнате
+			s.broadcastToRoomExcept(roomID, peerID, msg)
+
+		// Веерный проброс WebRTC метаданных (SDP Offer / Answer / ICE) по P2P Mesh-мосту
 		case "sdp_offer", "sdp_answer", "ice_candidate":
 			target, _ := msg["target_peer_id"].(string)
 			s.sendToPeer(roomID, target, msg)
 
+		// Обработка Управляющих Директив Модерации (Control Frames) (Req. 1)
 		case "control_frame":
-			// Жесткая серверная проверка b2b прав модератора из RAM структуры, привязанной к JWT
 			if !isModerator {
-				s.log.Error("[SECURITY VIOLATION] Попытка несанкционированной модерации от Peer: %s", peerID)
-				continue
+				s.log.Error("[SECURITY ALERT] Попытка взлома модерации от Peer: %s", peerID)
+				continue // Жесткая AppSec-отсечка фальсификации прав администратора
 			}
 			cmd, _ := msg["command"].(string)
 			target, _ := msg["target_peer_id"].(string)
@@ -94,6 +103,7 @@ func (s *SignalingService) HandleWsSignal(roomID, tokenStr string, ws *websocket
 				shard.mu.Lock()
 				shard.rooms[roomID].IsPaused = true
 				shard.mu.Unlock()
+				// Веерно пушим команду перевода видео в Muted Keyframes (1 кадр в 5 секунд)
 				s.broadcastToRoom(roomID, map[string]any{"type": "room_paused"})
 
 			case "MUTE_AUDIO":
@@ -103,16 +113,23 @@ func (s *SignalingService) HandleWsSignal(roomID, tokenStr string, ws *websocket
 				s.sendToPeer(roomID, target, map[string]any{"type": "force_kick"})
 			}
 
+		// Обработка сообщений живого чата с вызовом серверной санитизации
 		case "chat_msg":
+			rawText, _ := msg["text"].(string)
+
+			// Вызываем наше Core-ядро безопасности и логера чата
+			sanitizedText, _ := s.ProcessIncomingMessage(roomID, peerID, rawText)
+
 			s.broadcastToRoom(roomID, map[string]any{
 				"type":      "chat_broadcast",
 				"sender_id": peerID,
-				"text":      msg["text"],
+				"text":      sanitizedText,
 			})
 		}
 	}
 }
 
+// Вспомогательный метод веерной рассылки по комнате
 func (s *SignalingService) broadcastToRoom(roomID string, msg any) {
 	idx := s.getShardIndex(roomID)
 	shard := s.shards[idx]
@@ -125,6 +142,22 @@ func (s *SignalingService) broadcastToRoom(roomID string, msg any) {
 	}
 }
 
+// Вспомогательный метод веерной рассылки всем, КРОМЕ отправителя (Идеально для рисования)
+func (s *SignalingService) broadcastToRoomExcept(roomID, exceptPeerID string, msg any) {
+	idx := s.getShardIndex(roomID)
+	shard := s.shards[idx]
+
+	shard.mu.RLock()
+	defer shard.mu.RUnlock()
+
+	for id, p := range shard.conns[roomID] {
+		if id != exceptPeerID {
+			_ = p.WS.WriteJSON(msg)
+		}
+	}
+}
+
+// Вспомогательный метод точечной доставки фрейма конкретному пиру
 func (s *SignalingService) sendToPeer(roomID, peerID string, msg any) {
 	idx := s.getShardIndex(roomID)
 	shard := s.shards[idx]

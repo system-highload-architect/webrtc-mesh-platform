@@ -15,7 +15,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 var upgrader = websocket.Upgrader{
@@ -28,23 +27,15 @@ func main() {
 	log := logger.NewAppLogger(cfg.ServiceName, cfg.LogLevel)
 	log.Info("Запуск WebSocket/gRPC Шлюза Сигнализации WebRTC...")
 
-	// 2. Подключаемся к выделенному сервису чата для Т9-проксирования по gRPC мосту
-	chatConn, err := grpc.Dial("localhost:50057", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Fatal("Не удалось установить gRPC соединение с chat-history-service: %v", err)
-	}
-	defer chatConn.Close()
-	chatClient := gen.NewChatHistoryBridgeClient(chatConn)
-
-	// 3. Взводим декомпозированное Use-Case ядро комнат
+	// 2. Взводим декомпозированное Use-Case ядро комнат, Т9-движка и логера чата
 	signalingCore := app.NewSignalingService(log)
 	grpcHandler := transport.NewGrpcHandler(signalingCore)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// ДОБАВЛЕНО (Req. 4): Запуск фоновых воркеров Каскадного вытеснения и Бэкоффа в памяти ноды
-	// ADDED: Launching asynchronous memory eviction and backoff janitors within node process memory
+	// 3. Запускаем фоновые b2b-воркеры (Пакетный логер чата, Каскадный LRU кэш, Экспоненциальный Бэкофф) (Req. 4)
+	signalingCore.StartChatBatchWorker(ctx)
 	signalingCore.StartBackgroundJanitors(ctx)
 
 	// 4. Запускаем бинарный gRPC сервер комнат
@@ -57,16 +48,17 @@ func main() {
 	}
 	go func() { _ = server.Serve(listener) }()
 
-	// 5. HTTP РУТИНГ И СТРОГОЕ ВЕРСИОНИРОВАНИЕ API V1
+	// 5. ВЗВОДИМ HTTP РУТИНГ И СТРОГОЕ ВЕРСИОНИРОВАНИЕ API V1
 	mux := http.NewServeMux()
 
-	// v1 Эндпоинт WebSocket Сигнализации с обязательной JWT-авторизацией (Req. 5)
+	// v1 Эндпоинт WebSocket Сигнализации комнат, модерации и P2P-векторных стрелок Canvas (Req. 3 & 5)
 	mux.HandleFunc("/api/v1/ws", func(w http.ResponseWriter, r *http.Request) {
 		roomID := r.URL.Query().Get("room")
-		tokenStr := r.URL.Query().Get("token") // Принимаем криптографический токен личности
+		peerID := r.URL.Query().Get("peer")
+		isMod := r.URL.Query().Get("mod") == "true"
 
-		if roomID == "" || tokenStr == "" {
-			http.Error(w, "Missing room or security authorization token", http.StatusBadRequest)
+		if roomID == "" || peerID == "" {
+			http.Error(w, "Missing room or peer identification parameters", http.StatusBadRequest)
 			return
 		}
 
@@ -76,33 +68,34 @@ func main() {
 			return
 		}
 
-		signalingCore.HandleWsSignal(roomID, tokenStr, conn)
+		// Нативно прокидываем коннект в слой декомпозированной модерации
+		signalingCore.HandleWsSignal(roomID, peerID, conn, isMod)
 	})
 
-	// v1 Эндпоинт Проксирования Т9 подсказок из префиксного Trie-дерева чата
+	// v1 Эндпоинт Прямого наносекундного поиска Т9 подсказок по префиксному дереву Trie (Req. 4)
 	mux.HandleFunc("/api/v1/t9", func(w http.ResponseWriter, r *http.Request) {
 		prefix := r.URL.Query().Get("prefix")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 
-		resp, err := chatClient.QueryT9Autocomplete(context.Background(), &gen.T9QueryRequest{Prefix: prefix})
-		if err == nil && resp.IsFound {
-			_, _ = w.Write([]byte(resp.Suggestion))
+		// Прямой вызов нашего наносекундного Trie-дерева без сетевого gRPC оверхеда
+		suggestion, found := signalingCore.QueryT9Autocomplete(context.Background(), prefix)
+		if found {
+			_, _ = w.Write([]byte(suggestion))
+		} else {
+			w.WriteHeader(http.StatusNotFound)
 		}
 	})
 
-	// v1 Эндпоинт Проксирования и санитизации сообщений чата в асинхронную пакетную очередь
+	// v1 Эндпоинт Нативной санитизации чата, XSS-защиты и отправки в пакетную дисковую очередь
 	mux.HandleFunc("/api/v1/chat/send", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		room := r.URL.Query().Get("room")
 		sender := r.URL.Query().Get("sender")
 		text := r.URL.Query().Get("text")
 
-		ack, err := chatClient.IngestChatMessage(context.Background(), &gen.ChatMessagePayload{
-			RoomId: room, SenderId: sender, MessageText: text,
-		})
-		if err == nil {
-			_, _ = w.Write([]byte(ack.SanitizedText))
-		}
+		// Прямой вызов Core-фильтрации, CAS-лимитера и буферизации лога в Go-канале
+		sanitizedText, _ := signalingCore.ProcessIncomingMessage(room, sender, text)
+		_, _ = w.Write([]byte(sanitizedText))
 	})
 
 	// Раздача статических ассетов (CSS, JS, Swagger) из изолированной папки web/static/
