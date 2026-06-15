@@ -5,12 +5,13 @@
     <title>🔒 AppSec Security Shield — Предупреждение о переходе</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        /* Добавим эксклюзивное туманное мигание для текста предупреждения */
+        /* Фирменное туманно-неоновое мигание для текста предупреждения */
         .blink-alert {
-            color: #ecc94b;
+            color: #ecc94b !important;
             font-weight: bold;
             animation: appsecAlertBlink 2s infinite ease-in-out;
             text-shadow: 0 0 10px rgba(236, 201, 75, 0.4);
+            font-family: monospace;
         }
         @keyframes appsecAlertBlink {
             0%, 100% { opacity: 0.5; }
@@ -22,29 +23,29 @@
     <div style="max-width: 650px; margin: 80px auto; background: #161b22; border: 1px solid #ecc94b; border-radius: 6px; padding: 40px; box-shadow: 0 0 20px rgba(236, 201, 75, 0.05);">
         <h3 class="blink-alert" style="margin-top: 0; font-size: 16px;">⚠️ ВНИМАНИЕ: ВНЕШНИЙ ПЕРЕХОД (SAFE TRANSFER SHIELD)</h3>
         
-        <p style="font-size: 13px; line-height: 1.6; color: #c9d1d9; margin-top: 16px;">
+        <p style="font-size: 13px; line-height: 1.6; color: #c9d1d9; margin-top: 16px; font-family: monospace;">
             Вы собираетесь покинуть безопасный зашифрованный контур видеоконференции <b>WebRTC Mesh Platform</b>. 
             Платформа и её инфраструктурные узлы снимают с себя всякую ответственность за безопасность стороннего ресурса, сохранность ваших данных и криптографических токенов на внешнем сайте.
         </p>
 
         <div style="background: #0d1117; padding: 14px; border: 1px solid #30363d; border-radius: 4px; margin: 20px 0; word-break: break-all;">
-            <span style="font-size: 11px; color: #8b949e; display: block; margin-bottom: 6px;">Целевой URL-адрес назначения:</span>
+            <span style="font-size: 11px; color: #8b949e; display: block; margin-bottom: 6px; font-family: monospace;">Целевой URL-адрес назначения:</span>
             <b id="target-url-display" style="color: #4299e1; font-family: monospace; font-size: 13px;">Загрузка ссылки...</b>
         </div>
 
-        <p style="font-size: 12px; color: #8b949e; margin-bottom: 24px;">Вы действительно хотите осознанно продолжить переход по этой ссылке?</p>
+        <p style="font-size: 12px; color: #8b949e; margin-bottom: 24px; font-family: monospace;">Вы действительно хотите осознанно продолжить переход по этой ссылке?</p>
 
         <div style="display: flex; gap: 16px;">
-            <button class="btn" id="confirm-redirect-btn" style="background: #ecc94b; color: #0d1117; border: none; padding: 10px 20px; font-size: 13px;">
+            <button class="btn" id="confirm-redirect-btn" style="background: #ecc94b; color: #0d1117; border: none; padding: 10px 20px; font-size: 13px; font-weight: bold; cursor: pointer;">
                 Продолжить переход
             </button>
-            <button class="btn" style="border-color: #30363d; color: #c9d1d9; padding: 10px 20px; font-size: 13px;" onclick="window.close()">
+            <button class="btn" style="border-color: #30363d; color: #c9d1d9; padding: 10px 20px; font-size: 13px; cursor: pointer;" onclick="window.close()">
                 Отмена (Закрыть вкладку)
             </button>
         </div>
     </div>
 
-    <!-- Нативный импорт ESM логики страницы редиректа -->
+    <!-- Нативный импорт ESM-логики страницы редиректа -->
     <script type="module">
         import { initRedirectPage } from '/static/js/redirect.js';
         initRedirectPage();
