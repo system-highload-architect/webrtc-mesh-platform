@@ -1,0 +1,9 @@
+2026-06-15T12:46:12+03:00,room_stress_test_1,peer_bot_31_200,Легитимный b2b фрейм контента. Ссылка: https://system-highload-architect.ru%!(EXTRA string=https://github.com)
+2026-06-15T12:46:12+03:00,room_stress_test_1,peer_bot_36_900,Легитимный b2b фрейм контента. Ссылка: https://system-highload-architect.ru%!(EXTRA string=https://github.com)
+2026-06-15T12:46:12+03:00,room_stress_test_1,peer_bot_46_600,Легитимный b2b фрейм контента. Ссылка: https://system-highload-architect.ru%!(EXTRA string=https://github.com)
+https://system-highload-architect.ru%!(EXTRA string=https://github.com)
+2026-06-15T12:46:12+03:00,room_stress_test_1,peer_bot_16_500,&lt;script&gt;alert(&#39;XSS_ATTACK&#39;)&lt;/script&gt; Флуд-пакет
+2026-06-15T12:46:12+03:00,room_stress_test_1,peer_bot_26_500,Легитимный b2b фрейм контента. Ссылка: https://system-highload-architect.ru%!(EXTRA string=https://github.com)
+2:46:12+03:00,room_stress_test_4,peer_bot_14_0,&lt;script&gt;alert(&#39;XSS_ATTACK&#39;)&lt;/script&gt; Флуд-пакет
+2026-06-15T12:46:12+03:00,room_stress_test_4,peer_bot_29_800,&lt;script&gt;alert(&#39;XSS_ATTACK&#39;)&lt;/script&gt; Флуд-пакет
+//system-highload-architect.ru%!(EXTRA string=https://github.com)
