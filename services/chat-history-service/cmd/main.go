@@ -5,7 +5,7 @@ import (
 	"net"
 	"time"
 
-	"webrtc-mesh-platform/internal/chassis/config"
+	"webrtc-mesh-platform/internal/chassis/config" // НАШЕ ЕДИНОЕ ПЛАТФОРМЕННОЕ ШАССИ КОНФИГУРАЦИИ
 	"webrtc-mesh-platform/internal/pkg/logger"
 	"webrtc-mesh-platform/internal/pkg/shutdown"
 	"webrtc-mesh-platform/pb/gen"
@@ -16,12 +16,12 @@ import (
 )
 
 func main() {
-	// 1. Инициализируем локальный контур конфигурации и structured логер
-	cfg := config.LoadConfig("services/chat-history-service/config.yaml")
+	// 1. Инициализируем локальный контур конфигурации из общего шасси и structured логер
+	cfg := config.LoadGlobalConfig("services/chat-history-service/config.yaml")
 	log := logger.NewAppLogger(cfg.ServiceName, cfg.LogLevel)
 	log.Info("Запуск асинхронного аналитического сервиса истории чата и Т9-движка...")
 
-	// 2. Взводим Use-Case слой (Пакетный дисковый сборщик + Trie Tree)
+	// 2. Взводим Use-Case слой через интерфейсную абстракцию (Strict DI)
 	var historyCore app.ChatHistoryProcessor = app.NewHistoryService(log)
 
 	ctx, cancel := context.WithCancel(context.Background())

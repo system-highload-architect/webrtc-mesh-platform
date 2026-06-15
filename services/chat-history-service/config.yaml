@@ -1,4 +1,5 @@
 service_name: "webrtc-chat-history-service"
 log_level: "info"
-bind_addr: ":50057"       # Выделенный порт аналитического чат-слоя
-shutdown_timeout: 5      # Таймаут плавного сброса кэша на диск при SIGTERM
+bind_addr: ":50057"               # Выделенный порт аналитического чат-слоя
+shutdown_timeout: 5              # Таймаут плавного сброса кэша на диск при SIGTERM
+data_disk_path: "data/chat_history_segments" # Путь к файловым сегментам на NVMe
