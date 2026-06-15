@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"sync"
 
+	"webrtc-mesh-platform/internal/pkg/logger" // Подключаем логер шасси
 	"webrtc-mesh-platform/services/signaling-gateway/internal/domain"
 
 	"github.com/gorilla/websocket"
@@ -29,14 +30,16 @@ type RoomShard struct {
 type SignalingService struct {
 	shards     []*RoomShard
 	shardCount uint32
-	hmacSecret []byte // Ключ для криптографической HMAC-SHA256 CSRF защиты ссылок (Req. 5)
+	log        *logger.AppLogger // ДОБАВЛЕНО: Поле логера для AppSec метрик
+	hmacSecret []byte            // Ключ для криптографической HMAC-SHA256 CSRF защиты ссылок (Req. 5)
 }
 
 // NewSignalingService инициализирует 32-сегментный распределенный менеджер WebRTC сессий
-func NewSignalingService() *SignalingService {
+func NewSignalingService(log *logger.AppLogger) *SignalingService {
 	s := &SignalingService{
 		shardCount: 32,
 		shards:     make([]*RoomShard, 32),
+		log:        log, // ДОБАВЛЕНО: Инжектим логер шасси
 		hmacSecret: []byte("webrtc_b2b_secret_key"),
 	}
 

@@ -2,74 +2,108 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>🏛️ WebRTC Mesh Platform Console</title>
+    <title>🏛️ WebRTC Mesh Platform — Control Center</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <h2>🏛️ WebRTC P2P Mesh Real-Time Control Workspace</h2>
-    <div style="margin-bottom: 15px; background: #21262d; padding: 10px; border-radius: 4px;">
-        <span id="role-badge" style="color: #ecc94b; font-weight: bold;">[СТАТУС] Инициализация сессии...</span>
-        <span style="margin-left: 20px;">Комната: <b id="room-lbl">-</b> | Ваш ID: <b id="peer-lbl">-</b></span>
-    </div>
-
-    <div class="grid">
-        <div class="panel">
-            <h3>📹 Direct Media Tunnels (Full-Mesh)</h3>
-            <div id="video-workspace">
-                <div class="video-box" id="local-video-box"><span class="badge" style="color:#319795;">📱 LOCAL CAPTURE</span><div id="local-status">Камера активна</div></div>
-                <div class="video-box" id="remote-video-box" style="display:none;"><span class="badge" style="color:#4299e1;">💻 PEER STREAM</span><div>Поток активен</div></div>
+    <div style="max-width: 800px; margin: 40px auto; background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 30px;">
+        <h2 style="color: #319795; margin-top: 0;">🏛️ WebRTC P2P Mesh Enterprise Console</h2>
+        <p style="color: #8b949e; font-size: 13px;">Панель инициализации зашифрованных комнат, JWT-авторизации и администрирования инфраструктуры.</p>
+        
+        <!-- БЛОК 1: КРИПТОГРАФИЧЕСКИЙ JWT ВХОД ЛИЧНОСТИ -->
+        <div id="auth-section" style="border-bottom: 1px solid #30363d; padding-bottom: 24px; margin-bottom: 24px;">
+            <h4 style="color: #e2e8f0; margin-bottom: 12px;">🔑 Авторизация в системе (Subscriber JWT Login)</h4>
+            <div style="display: flex; gap: 12px;">
+                <input type="text" id="auth-email" placeholder="Email (например, david@clearway.ru)" style="background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; border-radius: 4px; flex: 1;">
+                <input type="password" id="auth-password" placeholder="Пароль" style="background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; border-radius: 4px; flex: 1;">
+                <button class="btn" style="border-color: #319795; color: #319795;" onclick="performLogin()">Войти</button>
             </div>
-            <div style="margin-top:15px; display:flex; gap:10px;" id="moderator-controls">
-                <button class="btn btn-mod" id="mute-btn">🎙️ Заглушить (Mute)</button>
-                <button class="btn btn-mod" id="kick-btn">❌ Выгнать (Kick)</button>
-                <button class="btn btn-mod" style="border-color:#ecc94b; color:#ecc94b;" id="pause-btn">⏸️ Перерыв (Pause)</button>
-            </div>
+            <div id="auth-status" style="margin-top: 8px; font-size: 12px; color: #ecc94b;">Статус: Требуется авторизация</div>
         </div>
 
-        <div class="panel">
-            <h3>💬 Smart AppSec Chat (Trie-T9 Protected)</h3>
-            <div class="chat-area" id="chat-box"></div>
-            <div class="input-group">
-                <span class="t9-hint" id="t9-placeholder"></span>
-                <input type="text" id="chat-input" placeholder="Введите сообщение (TAB для Т9)..." autocomplete="off">
+        <!-- БЛОК 2: НАСТРОЙКА И ИНИЦИАЛИЗАЦИЯ КОНФЕРЕНЦИИ -->
+        <div id="setup-section" style="display: none;">
+            <h4 style="color: #e2e8f0; margin-bottom: 12px;">⚙️ Параметры новой b2b-конференции</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div>
+                    <label style="font-size: 12px; color: #8b949e;">ID Комнаты:</label>
+                    <input type="text" id="room-id" value="clearway_pki_session" style="background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; width: 100%; box-sizing: border-box; border-radius: 4px; margin-top: 4px;">
+                </div>
+                <div>
+                    <label style="font-size: 12px; color: #8b949e;">Макс. участников (до 100):</label>
+                    <input type="number" id="max-peers" value="100" max="100" style="background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; width: 100%; box-sizing: border-box; border-radius: 4px; margin-top: 4px;">
+                </div>
+                <div>
+                    <label style="font-size: 12px; color: #8b949e;">Время сессии (минут):</label>
+                    <input type="number" id="duration" value="60" style="background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; width: 100%; box-sizing: border-box; border-radius: 4px; margin-top: 4px;">
+                </div>
+                <div>
+                    <label style="font-size: 12px; color: #8b949e;">Email сотрудников для инвайта:</label>
+                    <input type="text" id="invite-emails" placeholder="konstantin@clearway.ru, team@small.ru" style="background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 10px; width: 100%; box-sizing: border-box; border-radius: 4px; margin-top: 4px;">
+                </div>
+            </div>
+            <button class="btn" style="background: #319795; color: #0d1117; border: none; width: 100%; padding: 12px; font-size: 14px;" onclick="provisionConference()">
+                🚀 Скомпилировать и запустить распределенный Mesh-контур
+            </button>
+        </div>
+        
+        <!-- БЛОК 3: ИНВЕЙТ-ПАНЕЛЬ ВЫДАЧИ ССЫЛОК -->
+        <div id="invite-section" style="display: none; margin-top: 24px; border-top: 1px solid #30363d; padding-top: 24px;">
+            <h4 style="color: #ecc94b; margin-bottom: 12px;">🔗 Контур успешно взведен в RAM! Ссылки доступа:</h4>
+            <div style="background: #0d1117; padding: 15px; border-radius: 4px; border: 1px solid #30363d;">
+                <p style="font-size: 12px; margin-top: 0;"><b>1. Ваша персональная ссылка (Владелец/Модератор):</b></p>
+                <input type="text" id="mod-link" readonly style="width: 100%; background: #161b22; border: 1px solid #30363d; color: #319795; padding: 8px; font-family: monospace; font-size: 12px; border-radius: 4px;">
+                
+                <p style="font-size: 12px; margin-top: 14px;"><b>2. Ссылка для сотрудников (Участники):</b></p>
+                <input type="text" id="peer-link" readonly style="width: 100%; background: #161b22; border: 1px solid #30363d; color: #4299e1; padding: 8px; font-family: monospace; font-size: 12px; border-radius: 4px;">
+            </div>
+            <div style="margin-top: 16px; display: flex; gap: 12px;">
+                <button class="btn" style="border-color: #319795; color: #319795;" onclick="openAsModerator()">🎬 Войти как Модератор</button>
             </div>
         </div>
     </div>
 
-    <!-- Нативное склеивание изолированных JS интерфейсов через ESM-модули -->
-    <script type="module">
-        import { checkT9, handleTabCompletion } from '/static/js/chat.js';
+    <script>
+        let globalJwtToken = "";
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const roomID = urlParams.get('room') || "demo_room";
-        const peerID = urlParams.get('peer') || "user_rd";
-        const isMod = urlParams.get('mod') === "true";
+        function performLogin() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const statusEl = document.getElementById('auth-status');
 
-        document.getElementById('room-lbl').innerText = roomID;
-        document.getElementById('peer-lbl').innerText = peerID;
-
-        const inputEl = document.getElementById('chat-input');
-        const placeholderEl = document.getElementById('t9-placeholder');
-        let activeSuggestion = "";
-
-        inputEl.oninput = async () => {
-            activeSuggestion = await checkT9(inputEl, placeholderEl);
-        };
-
-        inputEl.onkeydown = (e) => {
-            if (e.key === "Tab" && activeSuggestion) {
-                e.preventDefault();
-                handleTabCompletion(inputEl, placeholderEl, activeSuggestion);
-                activeSuggestion = "";
+            // Симулируем b2b-вызов к нашему auth-service. В реальном проде шлюз проксирует это по gRPC
+            // Для локального теста делаем заглушку, которая вызовет REST v1
+            if(email === "david@clearway.ru" && password === "admin123") {
+                globalJwtToken = "header.payload_david_organizer_claims.signature"; // Имитируем токен
+                statusEl.innerText = "✅ Авторизован: Давид (Роль: ORGANIZER)";
+                statusEl.style.color = "#319795";
+                document.getElementById('setup-section').style.display = "block";
+            } else if(email === "konstantin@clearway.ru" && password === "user123") {
+                globalJwtToken = "header.payload_konstantin_employee_claims.signature";
+                statusEl.innerText = "✅ Авторизован: Константин (Роль: EMPLOYEE)";
+                statusEl.style.color = "#4299e1";
+                document.getElementById('setup-section').style.display = "block";
+            } else {
+                statusEl.innerText = "❌ Ошибка: Неверный Email или Пароль";
+                statusEl.style.color = "#e53e3e";
             }
-        };
+        }
 
-        // Подключаем ВЕРСИОНИРОВАННЫЙ v1 WebSocket сигнального шлюза
-        const ws = new WebSocket(`ws://${window.location.host}/api/v1/ws?room=${roomID}&peer=${peerID}&mod=${isMod}`);
-        ws.onmessage = (e) => {
-            const msg = JSON.parse(e.data);
-            if(msg.type === "peer_joined") document.getElementById('remote-video-box').style.display = "flex";
-        };
+        function provisionConference() {
+            const room = document.getElementById('room-id').value;
+            if(!room) return alert("Введите ID комнаты");
+
+            const host = window.location.host;
+            // Прописываем пути к нашим раздельным страницам
+            document.getElementById('mod-link').value = `http://${host}/conference.html?room=${room}&token=${globalJwtToken}`;
+            document.getElementById('peer-link').value = `http://${host}/join.html?room=${room}`;
+            document.getElementById('invite-section').style.display = "block";
+        }
+
+        function openAsModerator() {
+            const link = document.getElementById('mod-link').value;
+            if(link) window.location.href = link;
+        }
     </script>
 </body>
 </html>

@@ -37,7 +37,7 @@ func main() {
 	chatClient := gen.NewChatHistoryBridgeClient(chatConn)
 
 	// 3. Взводим декомпозированное Use-Case ядро комнат
-	signalingCore := app.NewSignalingService()
+	signalingCore := app.NewSignalingService(log)
 	grpcHandler := transport.NewGrpcHandler(signalingCore)
 
 	// 4. Запускаем бинарный gRPC сервер комнат
@@ -53,18 +53,24 @@ func main() {
 	// 5. ВЗВОДИМ HTTP РУТИНГ И СТРОГОЕ ВЕРСИОНИРОВАНИЕ API V1
 	mux := http.NewServeMux()
 
-	// v1 Эндпоинт WebSocket Сигнализации
+	// v1 Эндпоинт WebSocket Сигнализации с обязательной JWT-авторизацией (Req. 5)
 	mux.HandleFunc("/api/v1/ws", func(w http.ResponseWriter, r *http.Request) {
 		roomID := r.URL.Query().Get("room")
-		peerID := r.URL.Query().Get("peer")
-		isMod := r.URL.Query().Get("mod") == "true"
+		tokenStr := r.URL.Query().Get("token") // Принимаем криптографический токен личности
+
+		if roomID == "" || tokenStr == "" {
+			http.Error(w, "Missing room or security authorization token", http.StatusBadRequest)
+			return
+		}
 
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Error("[WS ERROR] Не удалось выполнить upgrade сокета: %v", err)
 			return
 		}
-		signalingCore.HandleWsSignal(roomID, peerID, conn, isMod)
+
+		// Передаем управление в moderation_business.go для валидации подписи подписи
+		signalingCore.HandleWsSignal(roomID, tokenStr, conn)
 	})
 
 	// v1 Эндпоинт Проксирования Т9 подсказок из префиксного Trie-дерева чата
