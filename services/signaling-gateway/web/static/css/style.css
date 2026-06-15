@@ -243,3 +243,52 @@ input.sandbox-input:focus {
     border-color: var(--border-teal);
     outline: none;
 }
+
+/* 📹 АДАПТИВНАЯ ГЕОМЕТРИЯ ОКАН ВИДЕОКЛАСТЕРА (Zoom/Discord Matrix) */
+.sandbox-video-tile-square {
+    background: var(--bg-dark);
+    border: 2px solid var(--border-teal);
+    border-radius: 8px;
+    width: 140px;
+    height: 140px;
+    min-width: 140px;
+    aspect-ratio: 1/1 !important; /* Жесткий b2b-квадрат для ленты участников */
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    transition: all 0.2s ease;
+}
+
+.sandbox-video-tile-square:hover {
+    border-color: var(--border-amber);
+    box-shadow: var(--neon-shadow);
+}
+
+.sandbox-video-focus-rect {
+    background: var(--bg-dark);
+    border: 2px solid var(--border-teal);
+    border-radius: 8px;
+    width: 100%;
+    height: 280px;
+    aspect-ratio: 16/9 !important; /* Гармоничный прямоугольник для Спикера/Демки */
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* Стилизация скроллбара горизонтальной ленты */
+#participants-slider-lane::-webkit-scrollbar {
+    height: 6px;
+}
+#participants-slider-lane::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+    border-radius: 4px;
+}
+#participants-slider-lane::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 4px;
+}
+#participants-slider-lane::-webkit-scrollbar-thumb:hover {
+    background: var(--border-teal);
+}

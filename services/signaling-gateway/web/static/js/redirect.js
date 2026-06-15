@@ -21,15 +21,12 @@ export function initRedirectPage() {
     }
 
     try {
-        // Безопасно декодируем URL-адрес из Query строки
         const decodedUrl = decodeURIComponent(targetUrl);
-        
         if (targetUrlDisplay) {
             targetUrlDisplay.innerText = decodedUrl;
         }
 
         if (confirmBtn) {
-            // Навешиваем обработчик осознанного перехода по внешней ссылке
             confirmBtn.onclick = () => {
                 window.location.href = decodedUrl;
             };

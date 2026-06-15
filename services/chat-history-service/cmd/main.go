@@ -2,53 +2,54 @@ package main
 
 import (
 	"context"
-	"net"
+	"net/http"
 	"time"
 
-	"webrtc-mesh-platform/internal/chassis/config" // НАШЕ ЕДИНОЕ ПЛАТФОРМЕННОЕ ШАССИ КОНФИГУРАЦИИ
+	"webrtc-mesh-platform/internal/chassis/config"
 	"webrtc-mesh-platform/internal/pkg/logger"
 	"webrtc-mesh-platform/internal/pkg/shutdown"
-	"webrtc-mesh-platform/pb/gen"
 	"webrtc-mesh-platform/services/chat-history-service/internal/app"
-	transport "webrtc-mesh-platform/services/chat-history-service/transport/grpc"
 
 	"google.golang.org/grpc"
 )
 
 func main() {
-	// 1. Инициализируем локальный контур конфигурации из общего шасси и structured логер
+	// 1. Инициализируем конфигурацию из универсального шасси и structured логер
 	cfg := config.LoadGlobalConfig("services/chat-history-service/config.yaml")
 	log := logger.NewAppLogger(cfg.ServiceName, cfg.LogLevel)
-	log.Info("Запуск асинхронного аналитического сервиса истории чата и Т9-движка...")
+	log.Info("Запуск выделенного Data Plane сервиса чата chat-history-service...")
 
-	// 2. Взводим Use-Case слой через интерфейсную абстракцию (Strict DI)
-	var historyCore app.ChatHistoryProcessor = app.NewHistoryService(log)
+	// 2. Взводим Use-Case ядро Т9-движка и Layout Switcher раскладки клавиатуры
+	chatEngine := app.NewChatHistoryEngine(log)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	mux := http.NewServeMux()
 
-	// Нативно запускаем бесконечный фоновый воркер накопления пачек по 30 штук (Req. 4)
-	historyCore.StartBatchJanitor(ctx)
+	// v1 REST Эндпоинт наносекундного поиска Т9 подсказок
+	mux.HandleFunc("/api/v1/t9", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
-	// 3. Собираем gRPC-транспорт чат-моста
-	grpcHandler := transport.NewGrpcHandler(historyCore)
+		prefix := r.URL.Query().Get("prefix")
 
-	server := grpc.NewServer()
-	gen.RegisterChatHistoryBridgeServer(server, grpcHandler)
+		suggestion, found := chatEngine.QueryT9Prediction(context.Background(), prefix)
+		if found {
+			_, _ = w.Write([]byte(suggestion))
+		} else {
+			// Отдаем 200 OK с пустой строкой для идеальной тишины в консоли
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(""))
+		}
+	})
 
-	// 4. Открываем сетевой сокет на прослушивание порта :50057
-	listener, err := net.Listen("tcp", cfg.BindAddr)
-	if err != nil {
-		log.Fatal("Не удалось открыть сетевой gRPC-порт %s: %v", cfg.BindAddr, err)
-	}
-
+	// ИСПРАВЛЕНО: Явно форсируем прослушивание порта :8082, сопряженного с L7 прокси
+	log.Info("🌐 REST-сервер chat-history-service успешно запущен на порту :8082")
+	httpServer := &http.Server{Addr: ":8082", Handler: mux}
 	go func() {
-		log.Info("gRPC Chat-History сервер успешно запущен на %s", cfg.BindAddr)
-		if err := server.Serve(listener); err != nil {
-			log.Fatal("Крах рантайма gRPC сервера истории чата: %v", err)
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal("Крах HTTP-рантайма chat-history-service: %v", err)
 		}
 	}()
 
-	// 5. Плавная остановка (Graceful Shutdown) с принудительным коммитом остатков логов из RAM на диск
+	server := grpc.NewServer() // Пустышка для диспетчера сигналов shutdown
 	shutdown.ListenSignals(log, server, time.Duration(cfg.ShutdownTimeout)*time.Second)
 }

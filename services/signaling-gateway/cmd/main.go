@@ -4,8 +4,6 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 
 	"webrtc-mesh-platform/internal/chassis/config"
@@ -23,12 +21,12 @@ func main() {
 	// 1. Инициализируем конфигурацию из универсального шасси и structured логер
 	cfg := config.LoadGlobalConfig("services/signaling-gateway/config.yaml")
 	log := logger.NewAppLogger(cfg.ServiceName, cfg.LogLevel)
-	log.Info("Запуск WebSocket/gRPC Шлюза Сигнализации WebRTC...")
+	log.Info("Запуск WebSocket/gRPC Шлюза Сигнализации WebRTC (Control Plane Mode)...")
 
-	// 2. Взводим декомпозированное Use-Case ядро комнат, Т9-движка и логера чата
+	// 2. Взводим декомпозированное Use-Case ядро комнат, CAS лимитеров и NVMe рекордера
 	signalingCore := app.NewSignalingService(log)
 
-	// Инициализируем адаптеры транспортов (Strict DI)
+	// Инициализируем адаптеры gRPC и HTTP транспортов (Strict DI)
 	grpcHandler := grpcTransport.NewGrpcHandler(signalingCore)
 	httpHandler := httpTransport.NewHttpHandler(signalingCore)
 
@@ -39,7 +37,7 @@ func main() {
 	signalingCore.StartChatBatchWorker(ctx)
 	signalingCore.StartBackgroundJanitors(ctx)
 
-	// 4. Запускаем бинарный gRPC сервер комнат
+	// 4. Запускаем бинарный gRPC сервер комнат для межсервисного общения
 	server := grpc.NewServer()
 	gen.RegisterMediaSignalingBridgeServer(server, grpcHandler)
 
@@ -49,42 +47,16 @@ func main() {
 	}
 	go func() { _ = server.Serve(listener) }()
 
-	// 5. ДИНАМИЧЕСКИЙ АНАЛИЗ ПУТЕЙ СТАТИКИ (Ликвидация 404 ошибок верстки)
-	basePath, _ := os.Getwd()
-	staticDir := filepath.Join(basePath, "web")
-	if _, err := os.Stat(filepath.Join(staticDir, "index.html")); os.IsNotExist(err) {
-		staticDir = filepath.Join(basePath, "services", "signaling-gateway", "web")
-	}
-	log.Info("Паттерн деплоя -> Корневой каталог ассетов определен как: %s", staticDir)
-
+	// 5. ВЗВОДИМ ЧИСТЫЙ МАРШРУТИЗАТОР СИГНАЛОВ API V1 (Только WebRTC сигналы!)
 	mux := http.NewServeMux()
 
-	// ВЕРСИОНИРОВАНИЕ API V1 (Чистая b2b-маршрутизация без inline кода!)
 	mux.HandleFunc("/api/v1/ws", httpHandler.HandleWebSocket)
-	mux.HandleFunc("/api/v1/t9", httpHandler.HandleT9Autocomplete)
 	mux.HandleFunc("/api/v1/chat/send", httpHandler.HandleChatSend)
 	mux.HandleFunc("/api/v1/ice-config", httpHandler.HandleIceConfig)
 	mux.HandleFunc("/api/v1/sdp/mutate", httpHandler.HandleSdpMutator)
 	mux.HandleFunc("/api/v1/redirect", httpHandler.HandleSafeRedirect)
 
-	// Раздача статических ассетов через абсолютные пути
-	fileServer := http.FileServer(http.Dir(filepath.Join(staticDir, "static")))
-	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
-
-	// Раздача страниц Multi-Page роутинга
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		targetFile := filepath.Join(staticDir, "index.html")
-		if r.URL.Path == "/join.html" {
-			targetFile = filepath.Join(staticDir, "join.html")
-		} else if r.URL.Path == "/conference.html" {
-			targetFile = filepath.Join(staticDir, "conference.html")
-		} else if r.URL.Path == "/redirect.html" {
-			targetFile = filepath.Join(staticDir, "redirect.html")
-		}
-		http.ServeFile(w, r, targetFile)
-	})
-
-	log.Info("🌐 Интерактивный Web-интерфейс API v1 доступен по адресу: http://localhost:8081")
+	log.Info("🌐 Изолированное ядро сигнализации готово принимать трафик на внутреннем порту: 8081")
 	httpServer := &http.Server{Addr: ":8081", Handler: mux}
 	go func() { _ = httpServer.ListenAndServe() }()
 

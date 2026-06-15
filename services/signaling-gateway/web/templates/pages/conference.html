@@ -1,0 +1,62 @@
+{{define "content"}}
+<div style="margin-bottom: 15px; background: #21262d; padding: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #30363d;">
+    <div>
+        <span id="role-badge" style="font-weight: bold; font-size: 13px; font-family: monospace;">[ИНИЦИАЛИЗАЦИЯ ПОДСИСТЕМЫ...]</span>
+        <span style="margin-left: 20px; font-size: 13px; font-family: monospace;">Комната: <b id="room-lbl" style="color:#319795;">-</b></span>
+    </div>
+    <div>
+        <button class="btn-sandbox btn-sandbox-danger" id="leave-btn" style="padding: 6px 14px;">🚪 Покинуть контур</button>
+    </div>
+</div>
+
+<div class="sandbox-workspace-grid">
+    <!-- ЛЕВОЕ КРЫЛО: Адаптивный b2b кластер видео-стримов (Zoom/Teams-Style Container) -->
+    <!-- ИСПРАВЛЕНО: Элементы управляются динамически через CSS Flex/Grid из JS рантайма -->
+    <div class="video-cluster-plane" id="video-cluster-plane-node" style="width: 55%; display: flex; flex-direction: column; gap: 16px; height: 100%;">
+        
+        <!-- Главная прямоугольная область (Active Speaker / Screen Share Focus 16:9) -->
+        <div id="main-focus-workspace" style="width: 100%; display: none;"></div>
+        
+        <!-- Горизонтальная прокручиваемая лента квадратных плиток участников (aspect-ratio: 1/1) -->
+        <div id="participants-slider-lane" style="width: 100%; display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; scroll-behavior: smooth;"></div>
+        
+    </div>
+
+    <!-- ПРАВОЕ КРЫЛО: СТРИМ ТЕРМИНАЛЬНОГО ЛОГА ЧАТА (room_chat_stream.log) -->
+    <div class="terminal-chat-sidebar" style="width: 45%;">
+        <div class="log-stream-header">
+            <span>⚡ room_chat_stream.log</span>
+            <span style="color: #8b949e; font-size: 10px; font-weight: normal; margin-left: auto; font-family: monospace;" id="buffer-capacity-lbl">[Capacity: 0/50k]</span>
+        </div>
+        
+        {{template "chat_log" .}}
+        {{template "chat_input" .}}
+
+        <!-- Пульт Модерации (Рендерится для ORGANIZER, содержит кнопки оркестрации) -->
+        <div style="display: none; gap: 6px; margin-bottom: 8px;" id="moderator-controls">
+            <button class="btn-sandbox btn-sandbox-active" style="flex:1;" id="mute-btn-action">🎙️ Mute All</button>
+            <button class="btn-sandbox btn-sandbox-danger" style="flex:1;" id="kick-btn-action">❌ Kick Peer</button>
+            <button class="btn-sandbox" style="flex:1; border-color:#ecc94b; color:#ecc94b;" id="pause-btn-action">⏸️ Пауза</button>
+        </div>
+
+        <!-- НИЖНЯЯ ОПЕРАЦИОННАЯ ПАНЕЛЬ КОНТРОЛЛЕРОВ УСТРОЙСТВ -->
+        <div class="control-dashboard-bar" id="infrastructure-controls">
+            <button class="btn-sandbox" id="screen-share-btn">🖥️ Экран</button>
+            <button class="btn-sandbox" id="mic-toggle-btn">📤 Mic: On</button>
+            <button class="btn-sandbox" id="cam-toggle-btn">📷 Cam: On</button>
+            <button class="btn-sandbox btn-sandbox-active" id="draw-mode-btn" style="display: none;">✏️ Рисование</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initSandboxSession } from '/static/js/conference.js?v={{.Version}}';
+    import { initDrawingEngine } from '/static/js/drawing.js?v={{.Version}}';
+    
+    initSandboxSession();
+    
+    setTimeout(() => {
+        initDrawingEngine('drawing-canvas', window.isModerator || false);
+    }, 500);
+</script>
+{{end}}

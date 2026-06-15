@@ -1,5 +1,6 @@
 service_name: "webrtc-signaling-gateway"
 log_level: "info"
-bind_addr: ":50055"       # Персональный gRPC-порт шлюза сигнализации
-shutdown_timeout: 5      # Секунды на Graceful Shutdown операции
-room_capacity_limit: 1000 # Предельный лимит комнат на ноду кластера
+bind_addr: ":50055"                 # Внутренний gRPC-порт для межсервисного сопряжения
+http_addr: ":8081"                  # Внешний HTTP/WebSocket порт, куда смотрит браузер
+shutdown_timeout: 5                 # Время на плавное закрытие NVMe файлов при SIGTERM
+room_capacity_limit: 1000           # Предельный лимит комнат на ноду кластера

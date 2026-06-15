@@ -1,7 +1,6 @@
 service_name: "webrtc-cloud-routing-proxy"
 log_level: "info"
-bind_addr: ":8080"                 # Входной порт балансировщика для клиентов
+bind_addr: ":8080"                  # Главный входной порт кластера для браузеров (API Gateway)
 shutdown_timeout: 5
-signaling_nodes:                   # Список нод сигнального кластера в Кубере
+signaling_nodes:                    # Список нод сигнализации для Consistent Hashing
   - "localhost:8081"
-  - "localhost:8082"

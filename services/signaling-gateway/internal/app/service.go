@@ -3,12 +3,13 @@ package app
 import (
 	"context"
 	"hash/fnv"
+	"os"
 	"regexp"
 	"sync"
 
 	"webrtc-mesh-platform/internal/pkg/logger"
-	"webrtc-mesh-platform/internal/pkg/ratelimit" // Подключаем наш общий Lock-Free лимитер из pkg
-	"webrtc-mesh-platform/internal/pkg/trie"      // Подключаем наш LRU-кэш комнат
+	"webrtc-mesh-platform/internal/pkg/ratelimit"
+	"webrtc-mesh-platform/internal/pkg/trie"
 	"webrtc-mesh-platform/services/signaling-gateway/internal/domain"
 
 	"github.com/gorilla/websocket"
@@ -36,10 +37,13 @@ type SignalingService struct {
 	shardCount  uint32
 	log         *logger.AppLogger
 	hmacSecret  []byte
-	t9Engine    *trie.T9PrefixEngine          // Наш наносекундный префиксный движок Т9
-	chatLimiter *ratelimit.TokenBucketLimiter // ИСПРАВЛЕНО: Добавлено поле Lock-Free CAS лимитера
-	chatQueue   chan string                   // ИСПРАВЛЕНО: Добавлен неблокирующий Go-канал пакетного логера
-	urlRegex    *regexp.Regexp                // ИСПРАВЛЕНО: Добавлено регулярное выражение парсинга URL
+	t9Engine    *trie.T9PrefixEngine
+	chatLimiter *ratelimit.TokenBucketLimiter
+	chatQueue   chan string
+	urlRegex    *regexp.Regexp
+
+	recordMutex sync.RWMutex
+	videoFiles  map[string]*os.File // Индекс дескрипторов активных файлов записи: roomID -> файл
 }
 
 // NewSignalingService инициализирует 32-сегментный распределенный менеджер и общее pkg-шасси
@@ -50,12 +54,12 @@ func NewSignalingService(log *logger.AppLogger) *SignalingService {
 		log:         log,
 		hmacSecret:  []byte("webrtc_b2b_secret_key"),
 		t9Engine:    trie.NewT9PrefixEngine(),
-		chatLimiter: ratelimit.NewTokenBucketLimiter(5, 5), // Лимит: 5 сообщений в секунду, емкость 5 токенов
-		chatQueue:   make(chan string, 50000),              // Неблокирующий буфер емкостью 50k сообщений
+		chatLimiter: ratelimit.NewTokenBucketLimiter(5, 5),
+		chatQueue:   make(chan string, 50000),
 		urlRegex:    regexp.MustCompile(`https?://[^\s]+`),
+		videoFiles:  make(map[string]*os.File),
 	}
 
-	// Аллоцируем память под изолированные RAM шарды и вешаем на каждый лимит в 1000 комнат
 	for i := uint32(0); i < s.shardCount; i++ {
 		s.shards[i] = &RoomShard{
 			lruCache: trie.NewReactiveLruCache(1000),
@@ -64,7 +68,6 @@ func NewSignalingService(log *logger.AppLogger) *SignalingService {
 		}
 	}
 
-	// Наполняем Т9 словарь базовыми легитимными терминами для проверки автодополнения по Tab
 	s.t9Engine.Insert("привет")
 	s.t9Engine.Insert("протокол")
 	s.t9Engine.Insert("архитектура")
@@ -74,27 +77,39 @@ func NewSignalingService(log *logger.AppLogger) *SignalingService {
 	return s
 }
 
-// getShardIndex вычисляет хэш FNV-1a для детерминированной маршрутизации в RAM за O(1)
 func (s *SignalingService) getShardIndex(roomID string) uint32 {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(roomID))
 	return h.Sum32() % s.shardCount
 }
 
-// BroadcastControlMessage реализует gRPC контракт внешнего администрирования
-func (s *SignalingService) BroadcastControlMessage(ctx context.Context, roomID string, cmd string, targetPeer string) error {
+// IsRoomOverloadedOrPaused возвращает статус заморозки или перегрузки комнаты (Req. 3)
+// ЗАКРЕПЛЕНО ЗДЕСЬ: Метод объявлен централизованно в главном шасси для исключения ошибок линковщика
+func (s *SignalingService) IsRoomOverloadedOrPaused(roomID string) bool {
 	idx := s.getShardIndex(roomID)
 	shard := s.shards[idx]
 
+	shard.mu.RLock()
+	defer shard.mu.RUnlock()
+
+	room, exists := shard.rooms[roomID]
+	if !exists {
+		return false
+	}
+
+	return len(room.Peers) > 15 || room.IsPaused
+}
+
+func (s *SignalingService) BroadcastControlMessage(ctx context.Context, roomID string, cmd string, targetPeer string) error {
+	idx := s.getShardIndex(roomID)
+	shard := s.shards[idx]
 	shard.mu.Lock()
 	defer shard.mu.Unlock()
-
 	roomObj, exists := shard.lruCache.Get(roomID)
 	if !exists {
 		return nil
 	}
 	room := roomObj.(*domain.VideoRoom)
-
 	peer, peerExists := room.Peers[targetPeer]
 	if peerExists && cmd == "MUTE_AUDIO" {
 		peer.IsMuted = true
