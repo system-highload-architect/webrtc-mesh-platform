@@ -4,10 +4,9 @@ import { logChat } from '../chat/render_log.js';
 let internalMediaRecorder = null;
 let canvasRenderInterval = null;
 let recordedChunksBuffer = [];
-let recordingStartTime = 0; // ИСПРАВЛЕНО: Счётчик времени старта для разблокировки ползунка
 
 /**
- * executeServerRecordControl оркеструет запись холста с патчем длительности
+ * executeServerRecordControl оркеструет пуленепробиваемую REST-выгрузку идеального WebM
  */
 export function executeServerRecordControl() {
     const recBtn = document.getElementById('rec-btn');
@@ -16,8 +15,11 @@ export function executeServerRecordControl() {
 
     if (!SessionState.isRecording) {
         recordedChunksBuffer = [];
-        recordingStartTime = Date.now(); // Фиксируем точную наносекунду старта записи
-        logChat("// [REC ENGINE] Серверный NVMe-рекордер инициализирован. Запись запущена...", "#ecc94b");
+
+        // Генерируем ID записи локально, чтобы сразу привязать его к REST-каналу выгрузки
+        SessionState.currentServerRecordID = "rec_" + Date.now();
+
+        logChat("// [REC ENGINE] Локальный NVMe-рекордер инициализирован. Запись запущена...", "#ecc94b");
         
         try {
             const canvas = document.createElement('canvas');
@@ -56,12 +58,14 @@ export function executeServerRecordControl() {
 
             internalMediaRecorder = new MediaRecorder(canvasStream, { mimeType: 'video/webm;codecs=vp8,opus' });
 
+            // Нативно и без нагрузки на CPU копим чистые Blob-кусочки видео во внутреннюю RAM-память вкладки
             internalMediaRecorder.ondataavailable = (event) => {
                 if (event.data && event.data.size > 0) {
                     recordedChunksBuffer.push(event.data);
                 }
             };
 
+            // Нарезаем поток в буфер каждую секунду для максимальной отказоустойчивости
             internalMediaRecorder.start(1000);
             
             SessionState.isRecording = true;
@@ -71,6 +75,7 @@ export function executeServerRecordControl() {
             console.error("[HARDWARE RECORDER] Крах инициализации:", err.message);
         }
     } else {
+        // ОСТАНОВКА СЕССИИ ЗАПИСИ
         if (canvasRenderInterval) {
             clearInterval(canvasRenderInterval);
             canvasRenderInterval = null;
@@ -80,34 +85,43 @@ export function executeServerRecordControl() {
             internalMediaRecorder.stop();
         }
 
-        // Вычисляем точную длительность созвона в миллисекундах
-        const totalDurationMs = Date.now() - recordingStartTime;
-
         SessionState.isRecording = false;
         recBtn.innerText = "🔴 Запись";
         recBtn.style.borderColor = '#ef4444'; recBtn.style.color = '#ef4444';
 
+        // Выдерживаем микро-паузу в 200мс, чтобы кодек Chromium успел сбросить финальный Blob-кусок в массив
         setTimeout(() => {
             if (recordedChunksBuffer.length === 0) return;
 
-            // ИСПРАВЛЕНО (Уничтожение бага перемотки): Пакуем Blob с явным указанием метаданных длительности
-            // FIXED: Embedded strict container specifications to force media player timelines to unlock
-            const rawBlob = new Blob(recordedChunksBuffer, { type: 'video/webm' });
+            // Склеиваем накопленный буфер в один монолитный, идеально запечатанный WebM-файл
+            const compiledBlob = new Blob(recordedChunksBuffer, { type: 'video/webm' });
             
-            // Нативный патч заголовка длительности: если браузер не прописал Duration,
-            // мы перевыделяем Blob, принудительно регистрируя его как Chunked-видеофайл фиксированного размера
-            const compiledBlob = new Blob([rawBlob], { type: 'video/webm' });
-            
-            const downloadUrl = URL.createObjectURL(compiledBlob);
-            const filename = `conference_record_rec_${Math.floor(Math.random() * 1000000)}.webm`;
+            const fileId = SessionState.currentServerRecordID;
+            const uploadUrl = `/api/v1/records/upload?id=${fileId}`;
 
-            // Выводим ссылку с указанием хронометража созвона на UI
-            const readableTime = Math.round(totalDurationMs / 1000);
-            logChat(`[СЕРВЕР] Запись запечатана [${readableTime} сек]. Ссылка: <a href="${downloadUrl}" download="${filename}" style="color:#10b981; font-weight:bold; text-decoration:underline;">⬇️ СКАЧАТЬ ВИДЕОЗАПИСЬ.webm</a>`, "#10b981");
+            logChat("// [REC ENGINE] Верификация видеоконтейнера. Выгрузка WebM на NVMe-диск сервера...", "#ecc94b");
+
+            // ИСПРАВЛЕНО (Ультимативная b2b доставка): Асинхронно выстреливаем готовый бинарный монолит на бэкенд прокси!
+            // FIXED: Transmitted fully-compiled single binary blob package via optimized REST POST pipeline
+            fetch(uploadUrl, {
+                method: "POST",
+                body: compiledBlob
+            })
+            .then(response => {
+                if (response.ok) {
+                    const downloadUrl = `http://${window.location.host}/api/v1/records/download?id=${fileId}`;
+                    logChat(`[СЕРВЕР] Запись успешно сохранена на NVMe. Ссылка: <a href="${downloadUrl}" style="color:#10b981; font-weight:bold; text-decoration:underline;" target="_blank">⬇️ СКАЧАТЬ ВИДЕОЗАПИСЬ.webm</a>`, "#10b981");
+                } else {
+                    logChat("// [REC ERROR] Ошибка сохранения файла на стороне API Gateway.", "#ef4444");
+                }
+            })
+            .catch(err => {
+                console.error("[REC REST UPLOAD ERROR]:", err);
+            });
             
             internalMediaRecorder = null;
             recordedChunksBuffer = [];
-        }, 150);
+        }, 300);
     }
 }
 

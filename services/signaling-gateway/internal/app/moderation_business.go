@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -52,6 +53,16 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 		var incoming domain.WsSession
 		if err := ws.ReadJSON(&incoming); err != nil {
 			break
+		}
+
+		if incoming.Type == "record_chunk" {
+			if activeRecordFile != nil && incoming.MediaBase64 != "" {
+				decodedBytes, err := base64.StdEncoding.DecodeString(incoming.MediaBase64)
+				if err == nil {
+					_, _ = activeRecordFile.Write(decodedBytes)
+				}
+			}
+			continue
 		}
 
 		if incoming.Type == "join" {
