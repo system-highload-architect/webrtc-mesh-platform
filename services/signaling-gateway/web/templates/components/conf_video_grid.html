@@ -1,0 +1,11 @@
+{{define "conf_video_grid"}}
+<div id="video-grid" style="flex: 1; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 12px; padding: 16px; height: 100%; max-height: 100%; overflow: hidden; background-color: #090d16; border-radius: 6px; border: 1px solid #1e293b; box-sizing: border-box;">
+    
+    <!-- Исходное прямоугольное превью кадра 16:9 (ВЫ) -->
+    <div class="video-wrapper" id="local-video-container" style="position: relative; background: #020617; border-radius: 8px; overflow: hidden; flex: 1 1 340px; max-width: 48%; max-height: calc(50dvh - 50px); aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; box-sizing: border-box; border: 1px solid #1e293b;">
+        <video id="local-video" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); background: #020617; z-index: 1; opacity: 1; transition: opacity 0.2s;"></video>
+        <span class="peer-name" id="local-name-label" style="position: absolute; bottom: 8px; left: 8px; background: rgba(0, 0, 0, 0.65); color: white; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-family: monospace; z-index: 10; pointer-events: none; border: 1px solid rgba(255, 255, 255, 0.05);">Вы</span>
+    </div>
+
+</div>
+{{end}}

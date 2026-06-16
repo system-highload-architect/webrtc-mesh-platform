@@ -1,0 +1,31 @@
+.ctrl-btn, .btn-sandbox {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-family: monospace;
+    font-weight: bold;
+    transition: all 0.15s ease;
+    outline: none;
+}
+
+.ctrl-btn:hover, .btn-sandbox:hover {
+    background-color: #334155;
+    border-color: var(--text-muted);
+}
+
+.ctrl-btn:disabled, .btn-sandbox:disabled {
+    opacity: 0.35;
+    cursor: not-allowed !important;
+}
+
+.btn-hangup {
+    background-color: #7f1d1d;
+    border: 1px solid var(--red-primary);
+}
+.btn-hangup:hover {
+    background-color: var(--red-primary);
+}

@@ -1,0 +1,17 @@
+{{define "provision_links"}}
+<div id="invite-section" style="display: none; background: #07090d; padding: 16px; border: 1px solid #30363d; border-radius: 6px; flex-direction: column; gap: 12px;">
+    <div>
+        <label style="font-size: 11px; color: #8b949e; display: block; margin-bottom: 4px; font-weight: bold; font-family: monospace;">👑 Ссылка модератора (Клик для копирования):</label>
+        <input type="text" id="mod-link" readonly style="width: 100%; background: #020617; border: 1px solid #30363d; padding: 8px; color: #319795; font-family: monospace; border-radius: 4px; box-sizing: border-box; cursor: pointer;">
+    </div>
+    
+    <div>
+        <label style="font-size: 11px; color: #8b949e; display: block; margin-bottom: 4px; font-weight: bold; font-family: monospace;">📱 Ссылка сотрудников (Клик для копирования):</label>
+        <input type="text" id="peer-link" readonly style="width: 100%; background: #020617; border: 1px solid #30363d; padding: 8px; color: #4299e1; font-family: monospace; border-radius: 4px; box-sizing: border-box; cursor: pointer;">
+    </div>
+    
+    <button id="enter-mod-btn-action" style="width: 100%; background: #319795; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-family: monospace; font-size: 13px; margin-top: 4px; box-shadow: 0 4px 12px rgba(49, 151, 149, 0.25);">
+        🚀 Перейти в интерактивную песочницу
+    </button>
+</div>
+{{end}}

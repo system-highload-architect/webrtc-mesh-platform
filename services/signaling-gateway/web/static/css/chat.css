@@ -1,0 +1,29 @@
+.chat-sidebar {
+    background-color: var(--bg-surface);
+    border-left: 1px solid var(--border-slate);
+}
+
+.chat-messages {
+    background: var(--bg-dark);
+}
+
+.chat-messages p {
+    margin: 0;
+    line-height: 1.4;
+    word-break: break-all;
+}
+
+/* Кастомизация высоконагруженного b2b-скроллбара чата */
+.chat-messages::-webkit-scrollbar {
+    width: 4px;
+}
+.chat-messages::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+}
+.chat-messages::-webkit-scrollbar-thumb {
+    background: var(--border-slate);
+    border-radius: 2px;
+}
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: var(--teal-primary);
+}

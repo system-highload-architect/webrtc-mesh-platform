@@ -141,12 +141,24 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			s.sendToPeer(roomID, target, msg)
 
 		case "control_frame":
+			cmd, _ := msg["command"].(string)
+
+			// ДОБАВЛЕНО (Синхронизация кадров): Перехват изменения стейта камеры участника кластера
+			if cmd == "TOGGLE_CAMERA_STATE" {
+				isOn, _ := msg["is_on"].(bool)
+				// Веерно рассылаем статус всем остальным нодам комнаты
+				s.broadcastToRoomExcept(roomID, peerID, map[string]any{
+					"type":    "peer_hardware_mutated",
+					"peer_id": peerID,
+					"cam_on":  isOn,
+				})
+				continue
+			}
+
 			if !isModerator {
 				continue
 			}
-			cmd, _ := msg["command"].(string)
 			target, _ := msg["target_peer_id"].(string)
-
 			switch cmd {
 			case "SET_PAUSE":
 				shard.mu.Lock()

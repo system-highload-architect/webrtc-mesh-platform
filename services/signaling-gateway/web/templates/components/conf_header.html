@@ -1,0 +1,11 @@
+{{define "conf_header"}}
+<div id="session-header-block" style="width: 100%; background: #161b22; border: 1px solid #30363d; padding: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+    <div>
+        <span id="role-badge" style="font-weight: bold; font-size: 13px; font-family: monospace; color: #8b949e;">[ИНИЦИАЛИЗАЦИЯ...]</span>
+        <span style="margin-left: 20px; font-size: 13px; font-family: monospace; color: #8b949e;">Комната: <b id="room-lbl" style="color:#319795;">-</b></span>
+    </div>
+    <div>
+        <button class="btn-sandbox btn-sandbox-danger" id="leave-btn" style="background-color: #7f1d1d; border: 1px solid #ef4444; color: white; padding: 6px 14px; font-family: monospace; font-size: 0.75rem; font-weight: bold; cursor: pointer; border-radius: 4px;">🚪 Покинуть контур</button>
+    </div>
+</div>
+{{end}}

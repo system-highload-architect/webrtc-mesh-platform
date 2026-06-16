@@ -4,14 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>System Highload Architect — Go Production Sandbox</title>
-    <!-- Динамическая b2b-инвалидация кэша стилей через компилятор Go -->
-    <link rel="stylesheet" href="/static/css/style.css?v={{.Version}}">
+    <title>WebRTC Mesh platform — Go Production Sandbox</title>
+    <!-- Универсальный Cache Busting через скомпилированную Go-переменную -->
+    <link rel="stylesheet" href="/static/css/meet.css?v={{.Version}}">
 </head>
-<body>
+<body style="background-color: #020617; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; margin: 0; padding: 0;">
 
-    <!-- Динамический контент страниц-акцепторов (SOLID композиция) -->
-    {{template "content" .}}
+    <div style="max-width: 1200px; margin: 0 auto; padding: 20px; box-sizing: border-box;">
+        <!-- Сюда Go-шаблонизатор будет нативно инжектировать наши 3 общих страницы -->
+        {{template "content" .}}
+    </div>
 
 </body>
 </html>

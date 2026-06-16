@@ -1,62 +1,14 @@
 {{define "content"}}
-<div class="gateway-container" style="max-width: 650px; margin: 40px auto;">
-    <h2 style="color: #319795; margin-top: 0; font-family: monospace; letter-spacing: 0.5px;">🏛️ WebRTC P2P Mesh Engine</h2>
-    <p style="color: #8b949e; font-size: 13px; margin-bottom: 24px;">Панель инициализации изолированных RAM-шардов, HMAC-токенов и JWT-паспортов личностей.</p>
-    
-    <!-- РАЗДЕЛ 1: КРИПТОГРАФИЧЕСКИЙ JWT ВХОД -->
-    <div style="border-bottom: 1px solid #30363d; padding-bottom: 20px; margin-bottom: 20px;">
-        <h4 style="color: #e2e8f0; margin-bottom: 12px; margin-top: 0; font-family: monospace;">🔑 Subscriber JWT Authentication</h4>
-        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-            <input type="text" id="auth-email" class="sandbox-input" placeholder="david@clearway.ru" value="david@clearway.ru" style="width: 50%;">
-            <input type="password" id="auth-password" class="sandbox-input" placeholder="Пароль" value="admin123" style="width: 50%;">
-        </div>
-        <button class="btn-sandbox btn-sandbox-active" id="login-btn-action" style="width: 100%; justify-content: center; padding: 12px;">
-            Выполнить криптографический вход личности
-        </button>
-        <div id="auth-status" style="margin-top: 10px; font-size: 12px; color: #ecc94b; font-weight: bold; font-family: monospace;">
-            // STATE: Ожидание авторизации...
-        </div>
-    </div>
+<div id="provisioning-gateway-root" class="gateway-container" style="display: flex; flex-direction: column; gap: 20px; max-width: 500px; margin: 40px auto; background: #0f172a; padding: 24px; border: 1px solid #1e293b; border-radius: 8px;">
+    <h3 style="color: #319795; margin: 0; font-family: monospace;">👑 WebRTC Mesh Provisioning</h3>
+    <p style="color: #8b949e; font-size: 13px; margin: 0;">Панель управления Владельца (ORGANIZER). Инициализируйте RAM-шард сессии созвона.</p>
 
-    <!-- РАЗДЕЛ 2: ИНИЦИАЛИЗАЦИЯ КОНФЕРЕНЦИИ (Открывается после ПСИ-1 входа) -->
-    <div id="setup-section" style="display: none; border-bottom: 1px solid #30363d; padding-bottom: 20px; margin-bottom: 20px;">
-        <h4 style="color: #e2e8f0; margin-bottom: 12px; margin-top: 0; font-family: monospace;">⚙️ Конфигурация Mesh Контура</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-            <div>
-                <label style="font-size: 11px; color: #8b949e; font-weight: bold; display: block; margin-bottom: 4px;">ID Комнаты (RAM Key):</label>
-                <input type="text" id="room-id" class="sandbox-input" value="clearway_pki_session">
-            </div>
-            <div>
-                <label style="font-size: 11px; color: #8b949e; font-weight: bold; display: block; margin-bottom: 4px;">Слоты участников (Max 100):</label>
-                <input type="number" id="max-peers" class="sandbox-input" value="100">
-            </div>
-        </div>
-        <button class="btn-sandbox btn-sandbox-active" id="provision-btn-action" style="width: 100%; justify-content: center; background: #319795; color: #07090d; border: none; padding: 12px; font-size: 13px;">
-            🚀 Скомпилировать и взвести RAM-шард комнат
-        </button>
-    </div>
-    
-    <!-- РАЗДЕЛ 3: ВЫДАЧА ИНВЕЙТ ССЫЛОК -->
-    <div id="invite-section" style="display: none; margin-top: 16px;">
-        <h4 style="color: #ecc94b; margin-bottom: 12px; margin-top: 0; font-family: monospace;">🔗 Ссылки доступа успешно сгенерированы:</h4>
-        <div style="background: #07090d; padding: 14px; border-radius: 6px; border: 1px solid #30363d; display: flex; flex-direction: column; gap: 12px;">
-            <div>
-                <span style="font-size: 11px; color: #8b949e; font-weight: bold; display: block; margin-bottom: 4px;">1. Ссылка Владельца (ORGANIZER):</span>
-                <input type="text" id="mod-link" class="sandbox-input" readonly style="color: #319795; font-weight: bold;">
-            </div>
-            <div>
-                <span style="font-size: 11px; color: #8b949e; font-weight: bold; display: block; margin-bottom: 4px;">2. Инвайт-ссылка сотрудников (EMPLOYEE):</span>
-                <input type="text" id="peer-link" class="sandbox-input" readonly style="color: #4299e1; font-weight: bold;">
-            </div>
-        </div>
-        <div style="margin-top: 16px;">
-            <button class="btn-sandbox btn-sandbox-active" id="enter-mod-btn-action" style="padding: 10px 20px;">
-                🎬 Войти в созданный Mesh контур
-            </button>
-        </div>
+    <!-- Сюда мы на следующих шагах внедрим компоненты авторизации и генерации ссылок -->
+    <div id="provisioning-workspace-node" style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- COMPONENT PLACEHOLDER -->
     </div>
 </div>
 
-<!-- Инжектим JS-управление с бэкенд Cache Busting версией -->
-<script type="module" src="/static/js/index.js?v={{.Version}}"></script>
+<!-- Подключаем строго изолированный JS-файл этой роли -->
+<script type="module" src="/static/js/index_page.js?v={{.Version}}"></script>
 {{end}}

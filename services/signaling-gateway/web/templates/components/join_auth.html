@@ -1,0 +1,22 @@
+{{define "join_auth"}}
+<div class="sandbox-card-node" style="background: #07090d; padding: 16px; border: 1px solid #30363d; border-radius: 6px; display: flex; flex-direction: column; gap: 12px;">
+    <div>
+        <label style="font-size: 11px; color: #8b949e; display: block; margin-bottom: 6px; font-weight: bold; font-family: monospace;">Корпоративный b2b-Email:</label>
+        <input type="text" id="employee-email" value="konstantin@clearway.ru" style="width: 100%; background: #020617; border: 1px solid #334155; padding: 8px; color: white; font-family: monospace; border-radius: 4px; box-sizing: border-box;" autocomplete="off">
+    </div>
+    
+    <div>
+        <label style="font-size: 11px; color: #8b949e; display: block; margin-bottom: 6px; font-weight: bold; font-family: monospace;">Пароль учетной записи:</label>
+        <input type="password" id="employee-password" value="user123" style="width: 100%; background: #020617; border: 1px solid #334155; padding: 8px; color: white; font-family: monospace; border-radius: 4px; box-sizing: border-box;">
+    </div>
+
+    <div>
+        <label style="font-size: 11px; color: #8b949e; display: block; margin-bottom: 6px; font-weight: bold; font-family: monospace;">Профиль качества (Bitrate Cap):</label>
+        <select id="video-quality" style="width: 100%; background: #020617; border: 1px solid #334155; padding: 8px; color: white; font-family: monospace; border-radius: 4px; box-sizing: border-box; cursor: pointer;">
+            <option value="720p" selected>🎥 720p HD (High-Res Mesh)</option>
+            <option value="480p">📺 480p SD (Standard B2B)</option>
+            <option value="320p">📟 320p LQ (Low-Bandwidth Mode)</option>
+        </select>
+    </div>
+</div>
+{{end}}

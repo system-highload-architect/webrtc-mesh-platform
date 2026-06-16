@@ -1,0 +1,6 @@
+{{define "provision_form"}}
+    <!-- SOLID композиция трех независимых компонентов создания сессии созвона -->
+    {{template "provision_auth" .}}
+    {{template "provision_room" .}}
+    {{template "provision_links" .}}
+{{end}}

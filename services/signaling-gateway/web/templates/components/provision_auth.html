@@ -1,0 +1,19 @@
+{{define "provision_auth"}}
+<div class="sandbox-card-node" style="background: #07090d; padding: 16px; border: 1px solid #30363d; border-radius: 6px; display: flex; flex-direction: column; gap: 12px;">
+    <div>
+        <label style="font-size: 11px; color: #8b949e; display: block; margin-bottom: 6px; font-weight: bold; font-family: monospace;">b2b-Паспорт (Email модератора):</label>
+        <input type="text" id="auth-email" value="david@clearway.ru" style="width: 100%; background: #020617; border: 1px solid #334155; padding: 8px; color: white; font-family: monospace; border-radius: 4px; box-sizing: border-box;" autocomplete="off">
+    </div>
+    
+    <div>
+        <label style="font-size: 11px; color: #8b949e; display: block; margin-bottom: 6px; font-weight: bold; font-family: monospace;">Пароль доступа:</label>
+        <input type="password" id="auth-password" value="admin123" style="width: 100%; background: #020617; border: 1px solid #334155; padding: 8px; color: white; font-family: monospace; border-radius: 4px; box-sizing: border-box;">
+    </div>
+    
+    <div id="auth-status" style="font-size: 11px; color: #8b949e; font-family: monospace; font-weight: bold; min-height: 16px;">// STATE: Ожидание верификации identity...</div>
+    
+    <button id="login-btn-action" style="width: 100%; background: #2563eb; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; font-family: monospace; font-size: 12px; transition: background 0.2s;">
+        Выполнить криптографический вход личности
+    </button>
+</div>
+{{end}}

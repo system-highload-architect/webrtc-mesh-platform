@@ -1,0 +1,46 @@
+.video-grid-layout {
+    background-color: var(--bg-shard);
+    border: 1px solid var(--border-slate);
+    border-radius: 6px;
+}
+
+.video-wrapper {
+    position: relative;
+    background: var(--bg-dark);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border-slate);
+    transition: all 0.2s ease-in-out;
+}
+
+.video-wrapper video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#local-video {
+    transform: scaleX(-1);
+}
+
+.peer-name {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(0, 0, 0, 0.65);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: monospace;
+    z-index: 10;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ⏸️ Заморозка Паузы модератора Давида */
+.video-wrapper.room-frozen {
+    filter: brightness(0.2) grayscale(1) blur(4px) !important;
+    border-color: var(--red-primary) !important;
+    pointer-events: none !important;
+}

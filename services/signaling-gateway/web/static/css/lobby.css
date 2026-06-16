@@ -1,0 +1,24 @@
+.gateway-container, .lobby-container {
+    animation: fade-in-b2b 0.25s ease-out;
+}
+
+.sandbox-input {
+    width: 100%;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-slate);
+    padding: 10px;
+    color: var(--text-primary);
+    font-family: monospace;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.sandbox-input:focus {
+    border-color: var(--teal-primary);
+}
+
+@keyframes fade-in-b2b {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}

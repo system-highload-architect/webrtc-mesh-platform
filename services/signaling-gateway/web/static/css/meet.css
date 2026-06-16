@@ -1,0 +1,6 @@
+/* Declarative CSS Module Router Architecture - SOLID Compliance Block */
+@import url("./base.css");
+@import url("./lobby.css");
+@import url("./video_grid.css");
+@import url("./chat.css");
+@import url("./controls.css");
