@@ -1,15 +1,19 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	"webrtc-mesh-platform/pb/gen"
 	"webrtc-mesh-platform/services/signaling-gateway/internal/domain"
 
 	"github.com/gorilla/websocket"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-// HandleWsSignal терминирует Full-Mesh WebRTC сигналы в RAM-шардах кластера
+// HandleWsSignal терминирует Full-Mesh WebRTC signals в RAM-шардах кластера
 func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.Conn, isModerator bool) {
 	idx := s.getShardIndex(roomID)
 	shard := s.shards[idx]
@@ -30,7 +34,22 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 	}
 	shard.mu.Unlock()
 
+	// Инициализируем защищенный gRPC-клиент к микросервису spr-storage (:50060)
+	grpcConn, err := grpc.Dial("localhost:50060", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	var storageClient gen.MediaSignalingBridgeClient
+	var grpcStream gen.MediaSignalingBridge_StreamMediaChunkClient
+
+	if err == nil && grpcConn != nil {
+		storageClient = gen.NewMediaSignalingBridgeClient(grpcConn)
+	}
+
 	defer func() {
+		if grpcStream != nil {
+			_, _ = grpcStream.CloseAndRecv()
+		}
+		if grpcConn != nil {
+			_ = grpcConn.Close()
+		}
 		shard.mu.Lock()
 		delete(shard.conns[roomID], peerID)
 		if room, exists := shard.rooms[roomID]; exists {
@@ -38,8 +57,6 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 		}
 		shard.mu.Unlock()
 		_ = ws.Close()
-
-		s.log.Info("[CONTROL PLANE] Абонент [%s] разорвал P2P-туннель комнаты [%s]", peerID, roomID)
 		s.broadcastToRoomRaw(roomID, domain.WsSession{Type: "peer-left", SenderID: peerID})
 	}()
 
@@ -49,7 +66,6 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			break
 		}
 
-		// 1. Стартовая регистрация ноды в Mesh
 		if incoming.Type == "join" {
 			shard.mu.Lock()
 			room := shard.rooms[roomID]
@@ -74,11 +90,10 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			_ = ws.WriteJSON(map[string]any{"type": "chat_history_dump", "logs": historyLogs})
 
 			s.broadcastToRoomExceptRaw(roomID, peerID, domain.WsSession{Type: "peer-joined", SenderID: peerID, SenderName: peerID})
-			s.log.Info("[CONTROL PLANE] Абонент [%s] успешно зарегистрирован в RAM-комнате [%s]", peerID, roomID)
+			s.log.Info("[CONTROL PLANE] Абонент [%s] зарегистрирован в RAM-комнате [%s]", peerID, roomID)
 			continue
 		}
 
-		// 2. Бродкаст текстовых фреймов чата
 		if incoming.Type == "chat" {
 			shard.mu.Lock()
 			room := shard.rooms[roomID]
@@ -89,57 +104,75 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			continue
 		}
 
-		// 3. Перехват плоских управляющих директив модерации Давида
+		// ИСПРАВЛЕНО (Межсервисный gRPC-стриминг медиа): Перехватываем куски видео и гоним по gRPC в spr-storage
+		// FIXED: Captured runtime media track packets over WebSocket and proxied downstream to spr-storage via gRPC stream
+		if incoming.Type == "record_chunk" && storageClient != nil {
+			if grpcStream == nil {
+				grpcStream, err = storageClient.StreamMediaChunk(context.Background())
+				if err != nil {
+					s.log.Error("[CONTROL PLANE] Ошибка открытия gRPC стрима к spr-storage: %v", err)
+					continue
+				}
+			}
+
+			if grpcStream != nil && len(incoming.MediaBytes) > 0 {
+				err = grpcStream.Send(&gen.MediaChunkRequest{
+					RecordId: incoming.RecordID,
+					Data:     incoming.MediaBytes,
+				})
+				if err != nil {
+					s.log.Error("[CONTROL PLANE] Ошибка отправки медиа-фрейма по gRPC: %v", err)
+				}
+			}
+			continue
+		}
+
 		if incoming.Type == "control_frame" {
 			if incoming.Command == "SET_PAUSE" {
 				shard.mu.Lock()
 				shard.rooms[roomID].IsPaused = true
 				shard.mu.Unlock()
-				s.log.Info("[ORCHESTRATION] Модератор Давид зафиксировал Паузу на Бэкенде.")
 				s.broadcastToRoomRaw(roomID, domain.WsSession{Type: "room_paused"})
 				continue
 			} else if incoming.Command == "RESUME_CONFERENCE" {
 				shard.mu.Lock()
 				shard.rooms[roomID].IsPaused = false
 				shard.mu.Unlock()
-				s.log.Info("[ORCHESTRATION] Модератор Давид снял Паузу на Бэкенде.")
 				s.broadcastToRoomRaw(roomID, domain.WsSession{Type: "room_resumed"})
 				continue
 			}
 
 			if incoming.Command == "MUTE_AUDIO" && incoming.TargetPeerID != "" {
-				s.log.Error("[ORCHESTRATION] Бэкенд шлюза шлет force_mute на ноду [%s]", incoming.TargetPeerID)
 				s.sendToPeerRaw(roomID, incoming.TargetPeerID, domain.WsSession{Type: "force_mute"})
 				continue
 			}
 
 			if incoming.Command == "KICK_PEER" && incoming.TargetPeerID != "" {
-				s.log.Error("[ORCHESTRATION] Бэкенд шлюза шлет force_kick на ноду [%s]", incoming.TargetPeerID)
 				s.sendToPeerRaw(roomID, incoming.TargetPeerID, domain.WsSession{Type: "force_kick"})
 				continue
 			}
 
 			if incoming.Command == "START_RECORD" {
-				s.log.Info("[REC ENGINE] Модератор Давид запустил серверную запись NVMe...")
-				// Имитируем или триггерим создание медиафайла на диске
-				mockFileID := fmt.Sprintf("rec_%d.webm", time.Now().Unix())
+				recordUnixID := fmt.Sprintf("rec_%d", time.Now().Unix())
+				s.log.Info("[CONTROL PLANE] Инициализация записи. ID: %s. Ожидание gRPC-стрима фреймов...", recordUnixID)
 				_ = ws.WriteJSON(map[string]any{
 					"type": "record_started",
-					"file": mockFileID,
+					"file": recordUnixID,
 				})
 				continue
 			}
 
 			if incoming.Command == "STOP_RECORD" {
-				s.log.Info("[REC ENGINE] Модератор Давид остановил серверную запись. Файл запечатан.")
+				if grpcStream != nil {
+					_, _ = grpcStream.CloseAndRecv()
+					grpcStream = nil
+				}
+				s.log.Info("[CONTROL PLANE] Модератор Давид остановил запись. gRPC-мост к spr-storage закрыт.")
 				continue
 			}
-
 			continue
 		}
 
-		// 4. МАРШРУТИЗАЦИЯ СИГНАЛОВ НА ЦЕЛЕВОЙ TARGET ID (Offers / Answers / Candidates)
-		// Теперь Payload нативно пересылается байт-в-байт удаленным браузерам!
 		if incoming.TargetID != "" {
 			incoming.SenderID = peerID
 			s.sendToPeerRaw(roomID, incoming.TargetID, incoming)

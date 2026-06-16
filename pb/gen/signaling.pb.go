@@ -846,6 +846,104 @@ func (x *T9QueryResponse) GetIsFound() bool {
 	return false
 }
 
+// MediaChunkRequest инкапсулирует бинарный кусок видео сессии
+type MediaChunkRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RecordId      string                 `protobuf:"bytes,1,opt,name=record_id,json=recordId,proto3" json:"record_id,omitempty"` // Уникальный GUID NVMe-файла записи
+	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`                         // Сырые WebM видео-байты из браузера
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MediaChunkRequest) Reset() {
+	*x = MediaChunkRequest{}
+	mi := &file_pb_signaling_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MediaChunkRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MediaChunkRequest) ProtoMessage() {}
+
+func (x *MediaChunkRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_signaling_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MediaChunkRequest.ProtoReflect.Descriptor instead.
+func (*MediaChunkRequest) Descriptor() ([]byte, []int) {
+	return file_pb_signaling_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *MediaChunkRequest) GetRecordId() string {
+	if x != nil {
+		return x.RecordId
+	}
+	return ""
+}
+
+func (x *MediaChunkRequest) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+// MediaStreamResponse подтверждает успешную аллокацию и дозапись фреймов
+type MediaStreamResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"` // Статус операции (SUCCESS / ERROR)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MediaStreamResponse) Reset() {
+	*x = MediaStreamResponse{}
+	mi := &file_pb_signaling_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MediaStreamResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MediaStreamResponse) ProtoMessage() {}
+
+func (x *MediaStreamResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_signaling_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MediaStreamResponse.ProtoReflect.Descriptor instead.
+func (*MediaStreamResponse) Descriptor() ([]byte, []int) {
+	return file_pb_signaling_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *MediaStreamResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
 var File_pb_signaling_proto protoreflect.FileDescriptor
 
 const file_pb_signaling_proto_rawDesc = "" +
@@ -911,14 +1009,20 @@ const file_pb_signaling_proto_rawDesc = "" +
 	"\n" +
 	"suggestion\x18\x01 \x01(\tR\n" +
 	"suggestion\x12\x19\n" +
-	"\bis_found\x18\x02 \x01(\bR\aisFound2\x8f\x01\n" +
+	"\bis_found\x18\x02 \x01(\bR\aisFound\"D\n" +
+	"\x11MediaChunkRequest\x12\x1b\n" +
+	"\trecord_id\x18\x01 \x01(\tR\brecordId\x12\x12\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\"-\n" +
+	"\x13MediaStreamResponse\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status2\x8f\x01\n" +
 	"\x14AuthenticationBridge\x126\n" +
 	"\x0fLoginSubscriber\x12\x10.pb.LoginRequest\x1a\x11.pb.LoginResponse\x12?\n" +
-	"\x14GetSubscriberProfile\x12\x12.pb.ProfileRequest\x1a\x13.pb.ProfileResponse2\xeb\x01\n" +
+	"\x14GetSubscriberProfile\x12\x12.pb.ProfileRequest\x1a\x13.pb.ProfileResponse2\xb1\x02\n" +
 	"\x14MediaSignalingBridge\x12E\n" +
 	"\x14CreateConferenceRoom\x12\x15.pb.RoomConfigRequest\x1a\x16.pb.RoomConfigResponse\x12E\n" +
 	"\x10UpdateRoomLimits\x12\x17.pb.UpdateLimitsRequest\x1a\x18.pb.UpdateLimitsResponse\x12E\n" +
-	"\x15BroadcastControlFrame\x12\x17.pb.ControlFramePayload\x1a\x13.pb.ControlFrameAck2\x94\x01\n" +
+	"\x15BroadcastControlFrame\x12\x17.pb.ControlFramePayload\x1a\x13.pb.ControlFrameAck\x12D\n" +
+	"\x10StreamMediaChunk\x12\x15.pb.MediaChunkRequest\x1a\x17.pb.MediaStreamResponse(\x012\x94\x01\n" +
 	"\x11ChatHistoryBridge\x12?\n" +
 	"\x11IngestChatMessage\x12\x16.pb.ChatMessagePayload\x1a\x12.pb.ChatMessageAck\x12>\n" +
 	"\x13QueryT9Autocomplete\x12\x12.pb.T9QueryRequest\x1a\x13.pb.T9QueryResponseB!Z\x1fwebrtc-mesh-platform/pb/gen;genb\x06proto3"
@@ -935,7 +1039,7 @@ func file_pb_signaling_proto_rawDescGZIP() []byte {
 	return file_pb_signaling_proto_rawDescData
 }
 
-var file_pb_signaling_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_pb_signaling_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_pb_signaling_proto_goTypes = []any{
 	(*LoginRequest)(nil),          // 0: pb.LoginRequest
 	(*LoginResponse)(nil),         // 1: pb.LoginResponse
@@ -951,26 +1055,30 @@ var file_pb_signaling_proto_goTypes = []any{
 	(*ChatMessageAck)(nil),        // 11: pb.ChatMessageAck
 	(*T9QueryRequest)(nil),        // 12: pb.T9QueryRequest
 	(*T9QueryResponse)(nil),       // 13: pb.T9QueryResponse
-	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
+	(*MediaChunkRequest)(nil),     // 14: pb.MediaChunkRequest
+	(*MediaStreamResponse)(nil),   // 15: pb.MediaStreamResponse
+	(*timestamppb.Timestamp)(nil), // 16: google.protobuf.Timestamp
 }
 var file_pb_signaling_proto_depIdxs = []int32{
-	14, // 0: pb.ChatMessageAck.timestamp:type_name -> google.protobuf.Timestamp
+	16, // 0: pb.ChatMessageAck.timestamp:type_name -> google.protobuf.Timestamp
 	0,  // 1: pb.AuthenticationBridge.LoginSubscriber:input_type -> pb.LoginRequest
 	2,  // 2: pb.AuthenticationBridge.GetSubscriberProfile:input_type -> pb.ProfileRequest
 	4,  // 3: pb.MediaSignalingBridge.CreateConferenceRoom:input_type -> pb.RoomConfigRequest
 	6,  // 4: pb.MediaSignalingBridge.UpdateRoomLimits:input_type -> pb.UpdateLimitsRequest
 	8,  // 5: pb.MediaSignalingBridge.BroadcastControlFrame:input_type -> pb.ControlFramePayload
-	10, // 6: pb.ChatHistoryBridge.IngestChatMessage:input_type -> pb.ChatMessagePayload
-	12, // 7: pb.ChatHistoryBridge.QueryT9Autocomplete:input_type -> pb.T9QueryRequest
-	1,  // 8: pb.AuthenticationBridge.LoginSubscriber:output_type -> pb.LoginResponse
-	3,  // 9: pb.AuthenticationBridge.GetSubscriberProfile:output_type -> pb.ProfileResponse
-	5,  // 10: pb.MediaSignalingBridge.CreateConferenceRoom:output_type -> pb.RoomConfigResponse
-	7,  // 11: pb.MediaSignalingBridge.UpdateRoomLimits:output_type -> pb.UpdateLimitsResponse
-	9,  // 12: pb.MediaSignalingBridge.BroadcastControlFrame:output_type -> pb.ControlFrameAck
-	11, // 13: pb.ChatHistoryBridge.IngestChatMessage:output_type -> pb.ChatMessageAck
-	13, // 14: pb.ChatHistoryBridge.QueryT9Autocomplete:output_type -> pb.T9QueryResponse
-	8,  // [8:15] is the sub-list for method output_type
-	1,  // [1:8] is the sub-list for method input_type
+	14, // 6: pb.MediaSignalingBridge.StreamMediaChunk:input_type -> pb.MediaChunkRequest
+	10, // 7: pb.ChatHistoryBridge.IngestChatMessage:input_type -> pb.ChatMessagePayload
+	12, // 8: pb.ChatHistoryBridge.QueryT9Autocomplete:input_type -> pb.T9QueryRequest
+	1,  // 9: pb.AuthenticationBridge.LoginSubscriber:output_type -> pb.LoginResponse
+	3,  // 10: pb.AuthenticationBridge.GetSubscriberProfile:output_type -> pb.ProfileResponse
+	5,  // 11: pb.MediaSignalingBridge.CreateConferenceRoom:output_type -> pb.RoomConfigResponse
+	7,  // 12: pb.MediaSignalingBridge.UpdateRoomLimits:output_type -> pb.UpdateLimitsResponse
+	9,  // 13: pb.MediaSignalingBridge.BroadcastControlFrame:output_type -> pb.ControlFrameAck
+	15, // 14: pb.MediaSignalingBridge.StreamMediaChunk:output_type -> pb.MediaStreamResponse
+	11, // 15: pb.ChatHistoryBridge.IngestChatMessage:output_type -> pb.ChatMessageAck
+	13, // 16: pb.ChatHistoryBridge.QueryT9Autocomplete:output_type -> pb.T9QueryResponse
+	9,  // [9:17] is the sub-list for method output_type
+	1,  // [1:9] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
 	1,  // [1:1] is the sub-list for extension extendee
 	0,  // [0:1] is the sub-list for field type_name
@@ -987,7 +1095,7 @@ func file_pb_signaling_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pb_signaling_proto_rawDesc), len(file_pb_signaling_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

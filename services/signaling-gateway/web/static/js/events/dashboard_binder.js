@@ -6,7 +6,7 @@ import { toggleVideo } from '../buttons/toggle_cam.js';
 import { toggleScreenShare } from '../buttons/screen_share.js';
 import { togglePauseRoomSignal } from '../buttons/pause_room.js';
 import { executeRemoteMuteTargeted, executeRemoteKickTargeted } from '../buttons/mod_orchestrator.js';
-import { injectRecordButton } from '../buttons/mod_recorder.js'; // Импортируем рекордер
+import { injectRecordButton } from '../buttons/mod_recorder.js'; // Подключаем SOLID-модуль записи
 import { hangUp } from '../buttons/hangup.js';
 
 /**
@@ -55,8 +55,6 @@ export function bindDashboardEvents() {
         const pauseBtn = document.getElementById('pause-btn-action');
         if (pauseBtn) pauseBtn.onclick = togglePauseRoomSignal;
 
-        // ИСПРАВЛЕНО: Инжектируем кнопку "🔴 Запись" на нижний дашборд Давида
-        // FIXED: Dynamically mounted administrative session recorder node trigger
         injectRecordButton();
     }
 }

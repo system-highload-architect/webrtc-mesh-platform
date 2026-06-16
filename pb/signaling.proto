@@ -25,6 +25,9 @@ service MediaSignalingBridge {
     
     // Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban, Pause)
     rpc BroadcastControlFrame(ControlFramePayload) returns (ControlFrameAck);
+
+    // Потоковый gRPC-метод передачи бинарных WebM-кадров от шлюза в spr-storage (Req. 3)
+    rpc StreamMediaChunk(stream MediaChunkRequest) returns (MediaStreamResponse);
 }
 
 // ChatHistoryBridge полностью изолирует асинхронный аналитический слой чата
@@ -122,4 +125,15 @@ message T9QueryRequest {
 message T9QueryResponse {
     string suggestion = 1; // Подсказка автодополнения (например, 'привет')
     bool is_found = 2;
+}
+
+// MediaChunkRequest инкапсулирует бинарный кусок видео сессии
+message MediaChunkRequest {
+    string record_id = 1; // Уникальный GUID NVMe-файла записи
+    bytes data = 2;       // Сырые WebM видео-байты из браузера
+}
+
+// MediaStreamResponse подтверждает успешную аллокацию и дозапись фреймов
+message MediaStreamResponse {
+    string status = 1;    // Статус операции (SUCCESS / ERROR)
 }

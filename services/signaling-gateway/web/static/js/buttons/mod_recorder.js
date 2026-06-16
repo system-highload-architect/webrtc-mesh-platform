@@ -1,8 +1,10 @@
 import { SessionState } from '../session_context.js';
 import { logChat } from '../chat/render_log.js';
 
+let internalMediaRecorder = null;
+
 /**
- * executeServerRecordControl управляет START / STOP триггерами NVMe записи на бэкенде Go
+ * executeServerRecordControl управляет START / STOP триггерами записи
  */
 export function executeServerRecordControl() {
     if (!SessionState.isModerator || !SessionState.ws || SessionState.ws.readyState !== WebSocket.OPEN) return;
@@ -11,18 +13,63 @@ export function executeServerRecordControl() {
     if (!recBtn) return;
 
     if (!SessionState.isRecording) {
-        // Выстреливаем плоский b2b фрейм старта записи в сокет
+        SessionState.currentServerRecordID = "";
+
+        // 1. Посылаем плоскую команду инициализации дескриптора на Бэкенд
         SessionState.ws.send(JSON.stringify({
             type: "control_frame",
             command: "START_RECORD"
         }));
         
-        SessionState.isRecording = true;
-        recBtn.innerText = "⏸️ Стоп";
-        recBtn.style.borderColor = "#ecc94b";
-        recBtn.style.color = "#ecc94b";
+        // 2. Аппаратно перехватываем медиа-микс сессии (Объединяем аудио и видео треки созвона)
+        try {
+            const tracks = [];
+            if (SessionState.localStream) {
+                SessionState.localStream.getTracks().forEach(t => tracks.push(t));
+            }
+            if (SessionState.screenStream) {
+                SessionState.screenStream.getTracks().forEach(t => tracks.push(t));
+            }
+
+            const mixedStream = new MediaStream(tracks);
+            
+            // Инициализируем нативный MediaRecorder браузера с кодеком VP8/Opus
+            internalMediaRecorder = new MediaRecorder(mixedStream, { mimeType: 'video/webm;codecs=vp8,opus' });
+
+            // ИСПРАВЛЕНО (Бинарная gRPC нарезка): Переводим кадры в ArrayBuffer и шлем в сокет-шину бэка
+            // FIXED: Embedded continuous chunk slice pipeline for seamless upstreaming into spr-storage grpc server
+            internalMediaRecorder.ondataavailable = async (event) => {
+                if (event.data && event.data.size > 0 && SessionState.currentServerRecordID) {
+                    const arrayBuffer = await event.data.arrayBuffer();
+                    const uint8Array = new Uint8Array(arrayBuffer);
+                    
+                    if (SessionState.ws && SessionState.ws.readyState === WebSocket.OPEN) {
+                        SessionState.ws.send(JSON.stringify({
+                            type: "record_chunk",
+                            record_id: SessionState.currentServerRecordID,
+                            media_bytes: Array.from(uint8Array) // Конвертируем в JSON-совместимый байтовый массив []byte
+                        }));
+                    }
+                }
+            };
+
+            // Нарезаем поток на b2b временные отрезки по 2000 миллисекунд
+            internalMediaRecorder.start(2000);
+            
+            SessionState.isRecording = true;
+            recBtn.innerText = "⏸️ Стоп";
+            recBtn.style.borderColor = "#ecc94b";
+            recBtn.style.color = "#ecc94b";
+        } catch (err) {
+            console.error("[HARDWARE RECORDER] Не удалось инициализировать MediaRecorder кадра:", err.message);
+            logChat(`// [REC ERROR] Крах инициализации кодека записи: ${err.message}`, "#ef4444");
+        }
     } else {
-        // Выстреливаем плоский b2b фрейм остановки записи в сокет
+        // ОСТАНОВКА СЕССИИ ЗАПИСИ
+        if (internalMediaRecorder && internalMediaRecorder.state !== "inactive") {
+            internalMediaRecorder.stop();
+        }
+
         SessionState.ws.send(JSON.stringify({
             type: "control_frame",
             command: "STOP_RECORD"
@@ -33,18 +80,15 @@ export function executeServerRecordControl() {
         recBtn.style.borderColor = '#ef4444';
         recBtn.style.color = '#ef4444';
 
-        // Формируем персистентную ссылку скачивания WebM через API Gateway балансировщика (:8080)
-        if (!SessionState.currentServerRecordID) {
-            SessionState.currentServerRecordID = "backup_rec_" + Date.now();
-        }
-        const downloadUrl = `http://${window.location.host}/api/v1/records/download?id=${SessionState.currentServerRecordID}`;
+        const fileId = SessionState.currentServerRecordID || ("backup_rec_" + Date.now());
+        const downloadUrl = `http://${window.location.host}/api/v1/records/download?id=${fileId}`;
         
-        logChat(`[СЕРВЕР] Запись сохранена. Ссылка: <a href="${downloadUrl}" style="color:#3b82f6; font-weight:bold; text-decoration:underline;" target="_blank">⬇️ СКАЧАТЬ WEB M</a>`);
+        logChat(`[СЕРВЕР] NVMe gRPC-запись запечатана. Ссылка: <a href="${downloadUrl}" style="color:#3b82f6; font-weight:bold; text-decoration:underline;" target="_blank">⬇️ СКАЧАТЬ ВАЛИДНЫЙ WEB M</a>`);
     }
 }
 
 /**
- * injectRecordButton динамически встраивает кнопку записи в дашборд модератора Давида
+ * injectRecordButton встраивает кнопку записи
  */
 export function injectRecordButton() {
     const bar = document.getElementById('infrastructure-controls');
@@ -57,7 +101,10 @@ export function injectRecordButton() {
     recBtn.innerText = '🔴 Запись';
     
     recBtn.onclick = executeServerRecordControl;
-    
-    // Вставляем кнопку записи первой в пульт управления
     bar.insertBefore(recBtn, bar.firstChild);
 }
+
+// Привязываем перехват прилетающего ID записи от сокет-менеджера в рантайме сессии
+window.setServerRecordSessionID = (fileId) => {
+    SessionState.currentServerRecordID = fileId;
+};

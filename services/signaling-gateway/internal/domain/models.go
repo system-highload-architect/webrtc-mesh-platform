@@ -30,7 +30,9 @@ type WsSession struct {
 	SenderName   string          `json:"sender_name,omitempty"`
 	TargetID     string          `json:"target_id,omitempty"`
 	Text         string          `json:"text,omitempty"`
-	Command      string          `json:"command,omitempty"`        // Плоское поле для Паузы, Mute и Kick
-	TargetPeerID string          `json:"target_peer_id,omitempty"` // Плоское поле для ID цели модерации
-	Payload      json.RawMessage `json:"payload,omitempty"`        // Нативный массив байт для SDP Offer/Answer и ICE
+	Command      string          `json:"command,omitempty"`
+	TargetPeerID string          `json:"target_peer_id,omitempty"`
+	Payload      json.RawMessage `json:"payload,omitempty"`
+	RecordID     string          `json:"record_id,omitempty"`   // Динамический ID сессии записи
+	MediaBytes   []byte          `json:"media_bytes,omitempty"` // Бинарные WebM-кадры из браузера
 }

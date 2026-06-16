@@ -93,9 +93,12 @@ export function initSocketConnection() {
                 break;
 
             case "record_started":
-                const parts = msg.file.split(/[\\/]/);
-                SessionState.currentServerRecordID = parts[parts.length - 1].replace(".webm", "");
-                logChat(`[RECORDING] NVMe файл записи сессии открыт: ${SessionState.currentServerRecordID}`, "#ef4444");
+                // Извлекаем чистый сгенерированный ID файла
+                SessionState.currentServerRecordID = msg.file;
+                if (window.setServerRecordSessionID) {
+                    window.setServerRecordSessionID(msg.file);
+                }
+                logChat(`[RECORDING] gRPC Стрим-канал к spr-storage открыт. Файл: ${msg.file}.webm`, "#ef4444");
                 break;
 
             case "room_paused":

@@ -170,6 +170,7 @@ const (
 	MediaSignalingBridge_CreateConferenceRoom_FullMethodName  = "/pb.MediaSignalingBridge/CreateConferenceRoom"
 	MediaSignalingBridge_UpdateRoomLimits_FullMethodName      = "/pb.MediaSignalingBridge/UpdateRoomLimits"
 	MediaSignalingBridge_BroadcastControlFrame_FullMethodName = "/pb.MediaSignalingBridge/BroadcastControlFrame"
+	MediaSignalingBridge_StreamMediaChunk_FullMethodName      = "/pb.MediaSignalingBridge/StreamMediaChunk"
 )
 
 // MediaSignalingBridgeClient is the client API for MediaSignalingBridge service.
@@ -184,6 +185,8 @@ type MediaSignalingBridgeClient interface {
 	UpdateRoomLimits(ctx context.Context, in *UpdateLimitsRequest, opts ...grpc.CallOption) (*UpdateLimitsResponse, error)
 	// Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban, Pause)
 	BroadcastControlFrame(ctx context.Context, in *ControlFramePayload, opts ...grpc.CallOption) (*ControlFrameAck, error)
+	// Потоковый gRPC-метод передачи бинарных WebM-кадров от шлюза в spr-storage (Req. 3)
+	StreamMediaChunk(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[MediaChunkRequest, MediaStreamResponse], error)
 }
 
 type mediaSignalingBridgeClient struct {
@@ -224,6 +227,19 @@ func (c *mediaSignalingBridgeClient) BroadcastControlFrame(ctx context.Context, 
 	return out, nil
 }
 
+func (c *mediaSignalingBridgeClient) StreamMediaChunk(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[MediaChunkRequest, MediaStreamResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &MediaSignalingBridge_ServiceDesc.Streams[0], MediaSignalingBridge_StreamMediaChunk_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[MediaChunkRequest, MediaStreamResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MediaSignalingBridge_StreamMediaChunkClient = grpc.ClientStreamingClient[MediaChunkRequest, MediaStreamResponse]
+
 // MediaSignalingBridgeServer is the server API for MediaSignalingBridge service.
 // All implementations must embed UnimplementedMediaSignalingBridgeServer
 // for forward compatibility.
@@ -236,6 +252,8 @@ type MediaSignalingBridgeServer interface {
 	UpdateRoomLimits(context.Context, *UpdateLimitsRequest) (*UpdateLimitsResponse, error)
 	// Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban, Pause)
 	BroadcastControlFrame(context.Context, *ControlFramePayload) (*ControlFrameAck, error)
+	// Потоковый gRPC-метод передачи бинарных WebM-кадров от шлюза в spr-storage (Req. 3)
+	StreamMediaChunk(grpc.ClientStreamingServer[MediaChunkRequest, MediaStreamResponse]) error
 	mustEmbedUnimplementedMediaSignalingBridgeServer()
 }
 
@@ -254,6 +272,9 @@ func (UnimplementedMediaSignalingBridgeServer) UpdateRoomLimits(context.Context,
 }
 func (UnimplementedMediaSignalingBridgeServer) BroadcastControlFrame(context.Context, *ControlFramePayload) (*ControlFrameAck, error) {
 	return nil, status.Error(codes.Unimplemented, "method BroadcastControlFrame not implemented")
+}
+func (UnimplementedMediaSignalingBridgeServer) StreamMediaChunk(grpc.ClientStreamingServer[MediaChunkRequest, MediaStreamResponse]) error {
+	return status.Error(codes.Unimplemented, "method StreamMediaChunk not implemented")
 }
 func (UnimplementedMediaSignalingBridgeServer) mustEmbedUnimplementedMediaSignalingBridgeServer() {}
 func (UnimplementedMediaSignalingBridgeServer) testEmbeddedByValue()                              {}
@@ -330,6 +351,13 @@ func _MediaSignalingBridge_BroadcastControlFrame_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MediaSignalingBridge_StreamMediaChunk_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(MediaSignalingBridgeServer).StreamMediaChunk(&grpc.GenericServerStream[MediaChunkRequest, MediaStreamResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MediaSignalingBridge_StreamMediaChunkServer = grpc.ClientStreamingServer[MediaChunkRequest, MediaStreamResponse]
+
 // MediaSignalingBridge_ServiceDesc is the grpc.ServiceDesc for MediaSignalingBridge service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -350,7 +378,13 @@ var MediaSignalingBridge_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _MediaSignalingBridge_BroadcastControlFrame_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "StreamMediaChunk",
+			Handler:       _MediaSignalingBridge_StreamMediaChunk_Handler,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "pb/signaling.proto",
 }
 
