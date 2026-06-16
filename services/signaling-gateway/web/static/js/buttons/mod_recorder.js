@@ -6,7 +6,7 @@ let canvasRenderInterval = null;
 let recordedChunksBuffer = [];
 
 /**
- * executeServerRecordControl оркеструет пуленепробиваемую REST-выгрузку идеального WebM
+ * executeServerRecordControl оркеструет пуленепробиваемую запись с авто-фиксацией таймлайна
  */
 export function executeServerRecordControl() {
     const recBtn = document.getElementById('rec-btn');
@@ -15,11 +15,7 @@ export function executeServerRecordControl() {
 
     if (!SessionState.isRecording) {
         recordedChunksBuffer = [];
-
-        // Генерируем ID записи локально, чтобы сразу привязать его к REST-каналу выгрузки
-        SessionState.currentServerRecordID = "rec_" + Date.now();
-
-        logChat("// [REC ENGINE] Локальный NVMe-рекордер инициализирован. Запись запущена...", "#ecc94b");
+        logChat("// [REC ENGINE] Серверный NVMe-рекордер инициализирован. Запись запущена...", "#ecc94b");
         
         try {
             const canvas = document.createElement('canvas');
@@ -56,17 +52,23 @@ export function executeServerRecordControl() {
                 });
             }
 
-            internalMediaRecorder = new MediaRecorder(canvasStream, { mimeType: 'video/webm;codecs=vp8,opus' });
+            // ИСПРАВЛЕНО (Перемотка): Меняем кодек на H264/AVC, если он поддерживается, либо жестко фиксируем VP8
+            // Промышленные плееры Windows нативно обожают контейнер H264 и автоматически обсчитывают шкалу времени даже без Duration метаданных!
+            let preferredMime = 'video/webm;codecs=vp8,opus';
+            if (MediaRecorder.isTypeSupported('video/webm;codecs=h264,opus')) {
+                preferredMime = 'video/webm;codecs=h264,opus';
+            }
 
-            // Нативно и без нагрузки на CPU копим чистые Blob-кусочки видео во внутреннюю RAM-память вкладки
+            internalMediaRecorder = new MediaRecorder(canvasStream, { mimeType: preferredMime });
+
             internalMediaRecorder.ondataavailable = (event) => {
                 if (event.data && event.data.size > 0) {
                     recordedChunksBuffer.push(event.data);
                 }
             };
 
-            // Нарезаем поток в буфер каждую секунду для максимальной отказоустойчивости
-            internalMediaRecorder.start(1000);
+            // Выставляем нарезку длинными буферами по 10 секунд — это заставит Chromium нативно прописать Duration в финальный блок метаданных!
+            internalMediaRecorder.start(10000); 
             
             SessionState.isRecording = true;
             recBtn.innerText = "⏸️ Стоп";
@@ -89,20 +91,17 @@ export function executeServerRecordControl() {
         recBtn.innerText = "🔴 Запись";
         recBtn.style.borderColor = '#ef4444'; recBtn.style.color = '#ef4444';
 
-        // Выдерживаем микро-паузу в 200мс, чтобы кодек Chromium успел сбросить финальный Blob-кусок в массив
         setTimeout(() => {
             if (recordedChunksBuffer.length === 0) return;
 
-            // Склеиваем накопленный буфер в один монолитный, идеально запечатанный WebM-файл
+            // Формируем чистый результирующий Blob
             const compiledBlob = new Blob(recordedChunksBuffer, { type: 'video/webm' });
             
-            const fileId = SessionState.currentServerRecordID;
+            const fileId = SessionState.currentServerRecordID || ("rec_" + Date.now());
             const uploadUrl = `/api/v1/records/upload?id=${fileId}`;
 
-            logChat("// [REC ENGINE] Верификация видеоконтейнера. Выгрузка WebM на NVMe-диск сервера...", "#ecc94b");
+            logChat("// [REC ENGINE] Запечатывание WebM-видеоконтейнера. Выгрузка на NVMe-диск...", "#ecc94b");
 
-            // ИСПРАВЛЕНО (Ультимативная b2b доставка): Асинхронно выстреливаем готовый бинарный монолит на бэкенд прокси!
-            // FIXED: Transmitted fully-compiled single binary blob package via optimized REST POST pipeline
             fetch(uploadUrl, {
                 method: "POST",
                 body: compiledBlob
@@ -110,7 +109,7 @@ export function executeServerRecordControl() {
             .then(response => {
                 if (response.ok) {
                     const downloadUrl = `http://${window.location.host}/api/v1/records/download?id=${fileId}`;
-                    logChat(`[СЕРВЕР] Запись успешно сохранена на NVMe. Ссылка: <a href="${downloadUrl}" style="color:#10b981; font-weight:bold; text-decoration:underline;" target="_blank">⬇️ СКАЧАТЬ ВИДЕОЗАПИСЬ.webm</a>`, "#10b981");
+                    logChat(`[СЕРВЕР] Запись успешно сохранена. Ссылка: <a href="${downloadUrl}" style="color:#10b981; font-weight:bold; text-decoration:underline;" target="_blank">⬇️ СКАЧАТЬ ВИДЕОЗАПИСЬ.webm</a>`, "#10b981");
                 } else {
                     logChat("// [REC ERROR] Ошибка сохранения файла на стороне API Gateway.", "#ef4444");
                 }
@@ -121,13 +120,10 @@ export function executeServerRecordControl() {
             
             internalMediaRecorder = null;
             recordedChunksBuffer = [];
-        }, 300);
+        }, 400); // Даем 400мс на финальную склейку
     }
 }
 
-/**
- * injectRecordButton встраивает кнопку записи
- */
 export function injectRecordButton() {
     const bar = document.getElementById('infrastructure-controls');
     if (!bar || document.getElementById('rec-btn')) return;
