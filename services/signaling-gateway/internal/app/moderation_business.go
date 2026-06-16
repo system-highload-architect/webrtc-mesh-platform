@@ -33,7 +33,7 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 		}
 	}
 
-	// Если заходит рядовой Сотрудник, а Владельца в комнате НЕТ — выставляем жесткий стоп-барьер ожидания
+	// Если заходит рядовой Сотрудник, а Владельца в комнате НЕТ — выставляем жесткий стоп-барьер
 	if !isModerator && (!roomExists || !hasActiveModerator) {
 		shard.mu.Unlock()
 		_ = ws.WriteJSON(map[string]string{
@@ -41,6 +41,7 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			"text": "Конференция еще не началась. Ожидайте авторизации Владельца комнаты...",
 		})
 
+		// Оставляем сокет открытым на чтение, но паркуем в бесконечном цикле ожидания
 		for {
 			if _, _, err := ws.ReadMessage(); err != nil {
 				_ = ws.Close()
@@ -84,10 +85,10 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 		})
 	}()
 
-	// Если зашел Давид — он пробуждает комнату, сигнализируя ждущим сотрудникам сделать авторелоад
+	// Если зашел Давид — он реанимирует и пробуждает всех сотрудников широковещательным пакетом
 	if isModerator {
-		s.log.Info("👑 [CONTROL PLANE] Владелец Давид в сети! Активация сопряжения комнат [%s]", roomID)
-		s.broadcastMapToRoomExcept(roomID, peerID, map[string]string{
+		s.log.Info("👑 [CONTROL PLANE] Владелец Давид в сети! Активация сопряжения Full-Mesh комнат звонка [%s]", roomID)
+		s.broadcastMapToRoom(roomID, map[string]string{
 			"type": "room_activated",
 		})
 	}
@@ -137,16 +138,8 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			}
 			shard.mu.Unlock()
 
-			_ = ws.WriteJSON(map[string]any{
-				"type":         "welcome",
-				"sender_id":    peerID,
-				"participants": currentParticipants,
-			})
-
-			_ = ws.WriteJSON(map[string]any{
-				"type": "chat_history_dump",
-				"logs": historyLogs,
-			})
+			_ = ws.WriteJSON(map[string]any{"type": "welcome", "sender_id": peerID, "participants": currentParticipants})
+			_ = ws.WriteJSON(map[string]any{"type": "chat_history_dump", "logs": historyLogs})
 
 			s.broadcastMapToRoomExcept(roomID, peerID, map[string]string{
 				"type":        "peer-joined",
@@ -236,18 +229,14 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 	}
 }
 
-// ИСПРАВЛЕНО (Пуленепробиваемые nil-чеки и защита мапы): Проверяем длину мапы во избежание паники ядра
-// FIXED: Secured room orchestration broadcast methods with robust map sizing guard clauses
 func (s *SignalingService) broadcastMapToRoom(roomID string, msg any) {
 	idx := s.getShardIndex(roomID)
 	shard := s.shards[idx]
 	shard.mu.RLock()
 	defer shard.mu.RUnlock()
-
 	if shard.conns[roomID] == nil || len(shard.conns[roomID]) == 0 {
 		return
 	}
-
 	for _, p := range shard.conns[roomID] {
 		if p != nil && p.WS != nil {
 			_ = p.WS.WriteJSON(msg)
@@ -260,11 +249,9 @@ func (s *SignalingService) broadcastMapToRoomExcept(roomID string, exceptPeerID 
 	shard := s.shards[idx]
 	shard.mu.RLock()
 	defer shard.mu.RUnlock()
-
 	if shard.conns[roomID] == nil || len(shard.conns[roomID]) <= 1 {
-		return // Защита: если в мапе только один Давид, вещать некому — выходим наружу, отменяя panic!
+		return
 	}
-
 	for id, p := range shard.conns[roomID] {
 		if id != exceptPeerID && p != nil && p.WS != nil {
 			_ = p.WS.WriteJSON(msg)
@@ -277,11 +264,9 @@ func (s *SignalingService) broadcastToRoomRaw(roomID string, msg domain.WsSessio
 	shard := s.shards[idx]
 	shard.mu.RLock()
 	defer shard.mu.RUnlock()
-
 	if shard.conns[roomID] == nil || len(shard.conns[roomID]) == 0 {
 		return
 	}
-
 	for _, p := range shard.conns[roomID] {
 		if p != nil && p.WS != nil {
 			_ = p.WS.WriteJSON(msg)
@@ -294,11 +279,9 @@ func (s *SignalingService) sendToPeerRaw(roomID, peerID string, msg domain.WsSes
 	shard := s.shards[idx]
 	shard.mu.RLock()
 	defer shard.mu.RUnlock()
-
 	if shard.conns[roomID] == nil {
 		return
 	}
-
 	if p, exists := shard.conns[roomID][peerID]; exists && p != nil && p.WS != nil {
 		_ = p.WS.WriteJSON(msg)
 	}

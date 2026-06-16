@@ -15,6 +15,7 @@ export function initSocketConnection() {
     window.ws = SessionState.ws;
 
     SessionState.ws.onopen = () => {
+        // Все ноды штатно шлют join при старте сокета
         SessionState.ws.send(JSON.stringify({
             type: "join",
             room_id: SessionState.roomId,
@@ -26,13 +27,10 @@ export function initSocketConnection() {
         const msg = JSON.parse(event.data);
         
         switch (msg.type) {
-            // ИСПРАВЛЕНО (Удержание сотрудников до Владельца): Накладываем глухой бэдpж ожидания, если Давида нет онлайн
-            // FIXED: Rendered fullscreen waiting layout view block if room has no active authorized organizer
             case "waiting_for_moderator":
                 const workspace = document.getElementById('conference-session-root');
                 if (workspace) {
                     workspace.style.pointerEvents = "none";
-                    // Инжектируем красивый фуллскрин оверлей блокировки
                     let overlay = document.getElementById('waiting-overlay-node');
                     if (!overlay) {
                         overlay = document.createElement('div');
@@ -41,21 +39,23 @@ export function initSocketConnection() {
                         overlay.innerHTML = `
                             <div style="color:#ecc94b; font-size:2rem; font-weight:bold; animation: pulse 1.5s infinite;">🔒 ROOM LOCK</div>
                             <div style="color:#8b949e; font-size:13px; text-align:center; max-width:400px; line-height:1.5;">${msg.text}</div>
-                            <div style="color:#334155; font-size:11px; margin-top:20px;">Платформа Clearway PKI Mesh • Рантайм верифицирован</div>
+                            <div style="color:#334155; font-size:11px; margin-top:20px;">Платформа Clearway PKI Mesh • Автоматическая активация</div>
                         `;
                         document.body.appendChild(overlay);
                     }
                 }
                 break;
 
-            // ИСПРАВЛЕНО (Пробуждение комнаты Давидом): Как только зашел Давид — шлюз дает команду ждущим нодам ожить!
-            // FIXED: Automatically triggered clean factory reload upon capture room_activated signal
             case "room_activated":
-                logChat("[SYSTEM] Владелец в сети! Инициализация автоматического сопряжения...", "#10b981");
-                setTimeout(() => {
-                    // Бесшовно, автоматически обновляем страницу сотрудника для идеального, бесконфликтного P2P входа!
-                    window.location.reload();
-                }, 400);
+                // ИСПРАВЛЕНО (Уничтожение вечной петли релоада Давида): Перезагрузку вызывают ТОЛЬКО сотрудники!
+                // Давид-модератор полностью игнорирует этот пакет, сохраняя сокет активным и стабильным
+                // FIXED: Isolated room organizer from auto-reload trigger loop to permanently prevent recursive layout refreshes
+                if (!SessionState.isModerator) {
+                    logChat("[SYSTEM] Владелец вошел! Инициализация автоматического сопряжения комнат...", "#10b981");
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 400);
+                }
                 break;
 
             case "welcome":
