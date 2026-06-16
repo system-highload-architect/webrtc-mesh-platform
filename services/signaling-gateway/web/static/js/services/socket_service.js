@@ -15,7 +15,6 @@ export function initSocketConnection() {
     window.ws = SessionState.ws;
 
     SessionState.ws.onopen = () => {
-        // Все ноды штатно шлют join при старте сокета
         SessionState.ws.send(JSON.stringify({
             type: "join",
             room_id: SessionState.roomId,
@@ -47,9 +46,6 @@ export function initSocketConnection() {
                 break;
 
             case "room_activated":
-                // ИСПРАВЛЕНО (Уничтожение вечной петли релоада Давида): Перезагрузку вызывают ТОЛЬКО сотрудники!
-                // Давид-модератор полностью игнорирует этот пакет, сохраняя сокет активным и стабильным
-                // FIXED: Isolated room organizer from auto-reload trigger loop to permanently prevent recursive layout refreshes
                 if (!SessionState.isModerator) {
                     logChat("[SYSTEM] Владелец вошел! Инициализация автоматического сопряжения комнат...", "#10b981");
                     setTimeout(() => {
@@ -62,10 +58,13 @@ export function initSocketConnection() {
                 SessionState.myId = msg.sender_id;
                 logChat(`[SYSTEM] Зашифрованный Control Plane контур взведен. ID: ${SessionState.myId}`, "#10b981");
                 
+                // ИСПРАВЛЕНО (Уничтожение гонки офферов): Новый зашедший участник (у которого страница ТОЛЬКО ЧТО загрузилась)
+                // сам выступает активным Инициатором коннекта (isInitiator = true) ко всей исторической цепочке старожилов!
+                // FIXED: Enforced incoming peer initialization schema (isInitiator = true) inside welcome handler frame
                 if (Array.isArray(msg.participants)) {
                     for (const p of msg.participants) {
                         SessionState.peerNames[p.id] = p.name;
-                        await createPeerConnection(p.id, p.name, false);
+                        await createPeerConnection(p.id, p.name, true);
                     }
                 }
                 break;
@@ -88,7 +87,10 @@ export function initSocketConnection() {
                 SessionState.peerNames[joinedID] = joinedName;
                 
                 logChat(`[JOIN] Участник ${joinedName} вошел в Mesh-сессию`, "#fbbf24");
-                await createPeerConnection(joinedID, joinedName, true);
+                
+                // ИСПРАВЛЕНО (Пассивное ожидание старожилов): Старожилы комнаты (включая Давида), чьи страницы уже давно открыты,
+                // переводят канал в состояние пассивного ожидания (isInitiator = false) и чисто принимают входящий оффер от гостя!
+                await createPeerConnection(joinedID, joinedName, false);
                 break;
 
             case "peer_left":

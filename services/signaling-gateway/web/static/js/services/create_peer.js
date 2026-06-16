@@ -80,24 +80,23 @@ export async function createPeerConnection(peerId, peerName, isInitiator) {
     };
 
     if (isInitiator) {
-        const delayDuration = SessionState.isModerator ? 350 : 10;
-        setTimeout(async () => {
-            try {
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                if (SessionState.ws && SessionState.ws.readyState === WebSocket.OPEN) {
-                    SessionState.ws.send(JSON.stringify({
-                        type: "offer",
-                        room_id: SessionState.roomId,
-                        payload: offer,
-                        target_id: peerId
-                    }));
-                }
-            } catch (err) {
-                console.error("[WebRTC Core] Крах SDP оффера:", err);
+        try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            if (SessionState.ws && SessionState.ws.readyState === WebSocket.OPEN) {
+                SessionState.ws.send(JSON.stringify({
+                    type: "offer",
+                    room_id: SessionState.roomId,
+                    payload: offer,
+                    target_id: peerId
+                }));
             }
-        }, delayDuration);
+        } catch (err) {
+            console.error("[WebRTC Core] Крах генерации локального SDP оффера:", err);
+        }
     }
+
 }
 
 export function removePeerVideo(peerId) {

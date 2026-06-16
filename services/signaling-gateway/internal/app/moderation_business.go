@@ -18,38 +18,10 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 	shard := s.shards[idx]
 
 	shard.mu.Lock()
-	roomExists := false
-	hasActiveModerator := false
 
-	if _, exists := shard.rooms[roomID]; exists {
-		roomExists = true
-		if shard.conns[roomID] != nil {
-			for id := range shard.conns[roomID] {
-				if shard.conns[roomID][id] != nil && shard.conns[roomID][id].IsModerator {
-					hasActiveModerator = true
-					break
-				}
-			}
-		}
-	}
-
-	// Если заходит рядовой Сотрудник, а Владельца в комнате НЕТ — выставляем жесткий стоп-барьер
-	if !isModerator && (!roomExists || !hasActiveModerator) {
-		shard.mu.Unlock()
-		_ = ws.WriteJSON(map[string]string{
-			"type": "waiting_for_moderator",
-			"text": "Конференция еще не началась. Ожидайте авторизации Владельца комнаты...",
-		})
-
-		// Оставляем сокет открытым на чтение, но паркуем в бесконечном цикле ожидания
-		for {
-			if _, _, err := ws.ReadMessage(); err != nil {
-				_ = ws.Close()
-				return
-			}
-		}
-	}
-
+	// ИСПРАВЛЕНО (Pre-Registration Routing ТЗ): Регистрируем сетевой сокет в мапу соединений в ПЕРВУЮ ОЧЕРЕДЬ!
+	// Теперь широковещательный метод вещания гарантированно увидит дескрипторы сокетов ждущих сотрудников!
+	// FIXED: Mounted socket descriptor to global room connections array early to ensure broadcast visibility
 	pConn := &PeerConnection{PeerID: peerID, WS: ws, IsModerator: isModerator, IsMuted: false}
 	if _, exists := shard.conns[roomID]; !exists {
 		shard.conns[roomID] = make(map[string]*PeerConnection)
@@ -62,6 +34,39 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			Peers: make(map[string]*domain.PeerSession), ChatHistory: make([]map[string]any, 0), CreatedAt: time.Now(),
 		}
 		shard.lruCache.Set(roomID, shard.rooms[roomID])
+	}
+
+	// Обсчитываем наличие модератора
+	roomExists := false
+	hasActiveModerator := false
+	if _, exists := shard.rooms[roomID]; exists {
+		roomExists = true
+		for id := range shard.conns[roomID] {
+			if shard.conns[roomID][id] != nil && shard.conns[roomID][id].IsModerator {
+				hasActiveModerator = true
+				break
+			}
+		}
+	}
+
+	// Если заходит рядовой Сотрудник, а Владельца в комнате ЕЕТ — шлем пакет удержания и паркуем рутину
+	if !isModerator && (!roomExists || !hasActiveModerator) {
+		shard.mu.Unlock()
+		_ = ws.WriteJSON(map[string]string{
+			"type": "waiting_for_moderator",
+			"text": "Конференция еще не началась. Ожидайте авторизации Владельца комнаты...",
+		})
+
+		// Асинхронно паркуем рутину сотрудника на чтение, освобождая мьютекс
+		for {
+			if _, _, err := ws.ReadMessage(); err != nil {
+				shard.mu.Lock()
+				delete(shard.conns[roomID], peerID)
+				shard.mu.Unlock()
+				_ = ws.Close()
+				return
+			}
+		}
 	}
 	shard.mu.Unlock()
 
@@ -85,9 +90,8 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 		})
 	}()
 
-	// Если зашел Давид — он реанимирует и пробуждает всех сотрудников широковещательным пакетом
 	if isModerator {
-		s.log.Info("👑 [CONTROL PLANE] Владелец Давид в сети! Активация сопряжения Full-Mesh комнат звонка [%s]", roomID)
+		s.log.Info("👑 [CONTROL PLANE] Владелец Давид в сети! Активация сопряжения комнат [%s]", roomID)
 		s.broadcastMapToRoom(roomID, map[string]string{
 			"type": "room_activated",
 		})
