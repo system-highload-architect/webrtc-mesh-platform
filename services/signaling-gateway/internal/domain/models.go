@@ -32,7 +32,7 @@ type WsSession struct {
 	Text         string          `json:"text,omitempty"`
 	Command      string          `json:"command,omitempty"`
 	TargetPeerID string          `json:"target_peer_id,omitempty"`
-	Payload      json.RawMessage `json:"payload,omitempty"`
+	Payload      json.RawMessage `json:"payload,omitempty"`      // Используется строго для сырых SDP/ICE
 	RecordID     string          `json:"record_id,omitempty"`    // ID сессии записи
 	MediaBase64  string          `json:"media_base64,omitempty"` // Видео кусок в кодировке Base64
 }

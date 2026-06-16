@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,6 +18,37 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 	shard := s.shards[idx]
 
 	shard.mu.Lock()
+	roomExists := false
+	hasActiveModerator := false
+
+	if _, exists := shard.rooms[roomID]; exists {
+		roomExists = true
+		if shard.conns[roomID] != nil {
+			for id := range shard.conns[roomID] {
+				if shard.conns[roomID][id] != nil && shard.conns[roomID][id].IsModerator {
+					hasActiveModerator = true
+					break
+				}
+			}
+		}
+	}
+
+	// Если заходит рядовой Сотрудник, а Владельца в комнате НЕТ — выставляем жесткий стоп-барьер ожидания
+	if !isModerator && (!roomExists || !hasActiveModerator) {
+		shard.mu.Unlock()
+		_ = ws.WriteJSON(map[string]string{
+			"type": "waiting_for_moderator",
+			"text": "Конференция еще не началась. Ожидайте авторизации Владельца комнаты...",
+		})
+
+		for {
+			if _, _, err := ws.ReadMessage(); err != nil {
+				_ = ws.Close()
+				return
+			}
+		}
+	}
+
 	pConn := &PeerConnection{PeerID: peerID, WS: ws, IsModerator: isModerator, IsMuted: false}
 	if _, exists := shard.conns[roomID]; !exists {
 		shard.conns[roomID] = make(map[string]*PeerConnection)
@@ -45,14 +77,34 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 		}
 		shard.mu.Unlock()
 		_ = ws.Close()
-		s.broadcastToRoomRaw(roomID, domain.WsSession{Type: "peer-left", SenderID: peerID})
+
+		s.broadcastMapToRoom(roomID, map[string]string{
+			"type":      "peer-left",
+			"sender_id": peerID,
+		})
 	}()
 
+	// Если зашел Давид — он пробуждает комнату, сигнализируя ждущим сотрудникам сделать авторелоад
+	if isModerator {
+		s.log.Info("👑 [CONTROL PLANE] Владелец Давид в сети! Активация сопряжения комнат [%s]", roomID)
+		s.broadcastMapToRoomExcept(roomID, peerID, map[string]string{
+			"type": "room_activated",
+		})
+	}
+
 	for {
-		// Возвращаем пуленепробиваемый ReadJSON
-		var incoming domain.WsSession
-		if err := ws.ReadJSON(&incoming); err != nil {
+		messageType, rawMessageBytes, err := ws.ReadMessage()
+		if err != nil {
 			break
+		}
+
+		if messageType == websocket.BinaryMessage {
+			continue
+		}
+
+		var incoming domain.WsSession
+		if err := json.Unmarshal(rawMessageBytes, &incoming); err != nil {
+			continue
 		}
 
 		if incoming.Type == "record_chunk" {
@@ -85,11 +137,23 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			}
 			shard.mu.Unlock()
 
-			_ = ws.WriteJSON(map[string]any{"type": "welcome", "sender_id": peerID, "participants": currentParticipants})
-			_ = ws.WriteJSON(map[string]any{"type": "chat_history_dump", "logs": historyLogs})
+			_ = ws.WriteJSON(map[string]any{
+				"type":         "welcome",
+				"sender_id":    peerID,
+				"participants": currentParticipants,
+			})
 
-			s.broadcastToRoomExceptRaw(roomID, peerID, domain.WsSession{Type: "peer-joined", SenderID: peerID, SenderName: peerID})
-			s.log.Info("[CONTROL PLANE] Абонент [%s] успешно зарегистрирован в RAM-комнате [%s]", peerID, roomID)
+			_ = ws.WriteJSON(map[string]any{
+				"type": "chat_history_dump",
+				"logs": historyLogs,
+			})
+
+			s.broadcastMapToRoomExcept(roomID, peerID, map[string]string{
+				"type":        "peer-joined",
+				"sender_id":   peerID,
+				"sender_name": peerID,
+				"peer_id":     peerID,
+			})
 			continue
 		}
 
@@ -155,7 +219,7 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			}
 
 			if incoming.Command == "STOP_RECORD" {
-				s.log.Info("[REC ENGINE] Серверный файл записи запечатан на диске.")
+				s.log.Info("[REC ENGINE] Серверный файл записи запечатан.")
 				if activeRecordFile != nil {
 					_ = activeRecordFile.Close()
 					activeRecordFile = nil
@@ -172,23 +236,54 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 	}
 }
 
+// ИСПРАВЛЕНО (Пуленепробиваемые nil-чеки и защита мапы): Проверяем длину мапы во избежание паники ядра
+// FIXED: Secured room orchestration broadcast methods with robust map sizing guard clauses
+func (s *SignalingService) broadcastMapToRoom(roomID string, msg any) {
+	idx := s.getShardIndex(roomID)
+	shard := s.shards[idx]
+	shard.mu.RLock()
+	defer shard.mu.RUnlock()
+
+	if shard.conns[roomID] == nil || len(shard.conns[roomID]) == 0 {
+		return
+	}
+
+	for _, p := range shard.conns[roomID] {
+		if p != nil && p.WS != nil {
+			_ = p.WS.WriteJSON(msg)
+		}
+	}
+}
+
+func (s *SignalingService) broadcastMapToRoomExcept(roomID string, exceptPeerID string, msg any) {
+	idx := s.getShardIndex(roomID)
+	shard := s.shards[idx]
+	shard.mu.RLock()
+	defer shard.mu.RUnlock()
+
+	if shard.conns[roomID] == nil || len(shard.conns[roomID]) <= 1 {
+		return // Защита: если в мапе только один Давид, вещать некому — выходим наружу, отменяя panic!
+	}
+
+	for id, p := range shard.conns[roomID] {
+		if id != exceptPeerID && p != nil && p.WS != nil {
+			_ = p.WS.WriteJSON(msg)
+		}
+	}
+}
+
 func (s *SignalingService) broadcastToRoomRaw(roomID string, msg domain.WsSession) {
 	idx := s.getShardIndex(roomID)
 	shard := s.shards[idx]
 	shard.mu.RLock()
 	defer shard.mu.RUnlock()
-	for _, p := range shard.conns[roomID] {
-		_ = p.WS.WriteJSON(msg)
-	}
-}
 
-func (s *SignalingService) broadcastToRoomExceptRaw(roomID, exceptPeerID string, msg domain.WsSession) {
-	idx := s.getShardIndex(roomID)
-	shard := s.shards[idx]
-	shard.mu.RLock()
-	defer shard.mu.RUnlock()
-	for id, p := range shard.conns[roomID] {
-		if id != exceptPeerID {
+	if shard.conns[roomID] == nil || len(shard.conns[roomID]) == 0 {
+		return
+	}
+
+	for _, p := range shard.conns[roomID] {
+		if p != nil && p.WS != nil {
 			_ = p.WS.WriteJSON(msg)
 		}
 	}
@@ -199,7 +294,12 @@ func (s *SignalingService) sendToPeerRaw(roomID, peerID string, msg domain.WsSes
 	shard := s.shards[idx]
 	shard.mu.RLock()
 	defer shard.mu.RUnlock()
-	if p, exists := shard.conns[roomID][peerID]; exists {
+
+	if shard.conns[roomID] == nil {
+		return
+	}
+
+	if p, exists := shard.conns[roomID][peerID]; exists && p != nil && p.WS != nil {
 		_ = p.WS.WriteJSON(msg)
 	}
 }

@@ -5,19 +5,16 @@ import { logChat } from '../chat/render_log.js';
 import { toggleUiFreeze } from '../buttons/pause_room.js';
 
 /**
- * initSocketConnection инициализирует защищенный полнодуплексный туннель сигнализации кластера
+ * initSocketConnection инициализирует туннель сигнализации кластера
  */
 export function initSocketConnection() {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-    
-    // Подключаемся к L7-балансировщику API Gateway (:8080)
     const socketUrl = `${wsProtocol}${window.location.host}/api/v1/ws?room=${SessionState.roomId}&peer=${SessionState.myPeerId}&mod=${SessionState.isModerator}`;
     
     SessionState.ws = new WebSocket(socketUrl);
     window.ws = SessionState.ws;
 
     SessionState.ws.onopen = () => {
-        // Стартовый пакет регистрации личности в RAM-комнате бэкенда
         SessionState.ws.send(JSON.stringify({
             type: "join",
             room_id: SessionState.roomId,
@@ -29,6 +26,38 @@ export function initSocketConnection() {
         const msg = JSON.parse(event.data);
         
         switch (msg.type) {
+            // ИСПРАВЛЕНО (Удержание сотрудников до Владельца): Накладываем глухой бэдpж ожидания, если Давида нет онлайн
+            // FIXED: Rendered fullscreen waiting layout view block if room has no active authorized organizer
+            case "waiting_for_moderator":
+                const workspace = document.getElementById('conference-session-root');
+                if (workspace) {
+                    workspace.style.pointerEvents = "none";
+                    // Инжектируем красивый фуллскрин оверлей блокировки
+                    let overlay = document.getElementById('waiting-overlay-node');
+                    if (!overlay) {
+                        overlay = document.createElement('div');
+                        overlay.id = 'waiting-overlay-node';
+                        overlay.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:#020617; z-index:99999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; font-family:monospace;";
+                        overlay.innerHTML = `
+                            <div style="color:#ecc94b; font-size:2rem; font-weight:bold; animation: pulse 1.5s infinite;">🔒 ROOM LOCK</div>
+                            <div style="color:#8b949e; font-size:13px; text-align:center; max-width:400px; line-height:1.5;">${msg.text}</div>
+                            <div style="color:#334155; font-size:11px; margin-top:20px;">Платформа Clearway PKI Mesh • Рантайм верифицирован</div>
+                        `;
+                        document.body.appendChild(overlay);
+                    }
+                }
+                break;
+
+            // ИСПРАВЛЕНО (Пробуждение комнаты Давидом): Как только зашел Давид — шлюз дает команду ждущим нодам ожить!
+            // FIXED: Automatically triggered clean factory reload upon capture room_activated signal
+            case "room_activated":
+                logChat("[SYSTEM] Владелец в сети! Инициализация автоматического сопряжения...", "#10b981");
+                setTimeout(() => {
+                    // Бесшовно, автоматически обновляем страницу сотрудника для идеального, бесконфликтного P2P входа!
+                    window.location.reload();
+                }, 400);
+                break;
+
             case "welcome":
                 SessionState.myId = msg.sender_id;
                 logChat(`[SYSTEM] Зашифрованный Control Plane контур взведен. ID: ${SessionState.myId}`, "#10b981");
@@ -41,8 +70,6 @@ export function initSocketConnection() {
                 }
                 break;
 
-            // ИСПРАВЛЕНО (Бизнес-функция №1): Нативно принимаем пачку логов из RAM-памяти Go бэкенда при входе
-            // FIXED: Captured historical chat array frame payload dump from microservice database container
             case "chat_history_dump":
             case "chat-history-dump":
                 if (Array.isArray(msg.logs)) {
@@ -50,9 +77,8 @@ export function initSocketConnection() {
                         logChat(`${l.sender_id || l.sender_name}: ${l.text}`);
                     });
                 }
-                // Динамически выводим емкость буфера в плашку
-                const lbl = document.getElementById('buffer-capacity-lbl');
-                if (lbl && msg.logs) lbl.innerText = `[Capacity: ${msg.logs.length}/50k]`;
+                const chatBoxNode = document.getElementById('chat-box');
+                if (chatBoxNode) chatBoxNode.scrollTop = chatBoxNode.scrollHeight;
                 break;
 
             case "peer_joined":
@@ -69,7 +95,6 @@ export function initSocketConnection() {
             case "peer-left":
                 const leftID = msg.peer_id || msg.sender_id;
                 logChat(`[LEAVE] Участник покинул созвон`, "#ef4444");
-                
                 removePeerVideo(leftID);
                 delete SessionState.peerNames[leftID];
                 break;
@@ -93,11 +118,8 @@ export function initSocketConnection() {
                 break;
 
             case "record_started":
-                // Извлекаем чистый сгенерированный ID файла
                 SessionState.currentServerRecordID = msg.file;
-                if (window.setServerRecordSessionID) {
-                    window.setServerRecordSessionID(msg.file);
-                }
+                if (window.setServerRecordSessionID) { window.setServerRecordSessionID(msg.file); }
                 logChat(`[RECORDING] gRPC Стрим-канал к spr-storage открыт. Файл: ${msg.file}.webm`, "#ef4444");
                 break;
 
@@ -112,14 +134,9 @@ export function initSocketConnection() {
             case "force_mute":
                 logChat("[ORCHESTRATION] Администратор ограничил ваш микрофон (Режим доклада).", "#ef4444");
                 SessionState.isAudioMuted = true;
-                if (SessionState.localStream) {
-                    SessionState.localStream.getAudioTracks().forEach(t => t.enabled = false);
-                }
+                if (SessionState.localStream) { SessionState.localStream.getAudioTracks().forEach(t => t.enabled = false); }
                 const audioBtn = document.getElementById('audio-toggle');
-                if (audioBtn) {
-                    audioBtn.innerText = "🎤 Микрофон: выкл";
-                    audioBtn.style.backgroundColor = "#7f1d1d";
-                }
+                if (audioBtn) { audioBtn.innerText = "🎤 Микрофон: выкл"; audioBtn.style.backgroundColor = "#7f1d1d"; }
                 break;
 
             case "force_kick":
