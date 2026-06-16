@@ -1,6 +1,7 @@
 import { SessionState } from '../session_context.js';
 import { logChat } from '../chat/render_log.js';
 import { toggleFullscreenElement } from './fullscreen.js';
+import { captureLocalMedia } from '../services/media_capture.js'; // Импортируем чистый перезапуск треков
 
 /**
  * toggleScreenShare запускает захват экрана или останавливает текущую демонстрацию
@@ -12,7 +13,7 @@ export async function toggleScreenShare() {
             SessionState.screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
             const screenTrack = SessionState.screenStream.getVideoTracks()[0];
             
-            // 1. Подменяем дорожку во всех P2P-плечах Full-Mesh сети
+            // Бесшовно подменяем дорожку во всех P2P-плечах Full-Mesh сети
             for (let peerId in SessionState.peerConnections) {
                 const senders = SessionState.peerConnections[peerId].getSenders();
                 const videoSender = senders.find(s => s.track && s.track.kind === 'video');
@@ -21,19 +22,10 @@ export async function toggleScreenShare() {
                 }
             }
             
-            // ИСПРАВЛЕНО (Запись демонстрации экрана): Если Давид ведет запись, на лету инжектируем трек экрана в рекордер!
-            // FIXED: Dynamically injected screen track into active recorder stream pipeline to fix blinding bugs
-            if (SessionState.isRecording && window.internalMediaRecorderRef) {
-                const mixedStream = window.internalMediaRecorderRef.stream;
-                const activeVideoTrack = mixedStream.getVideoTracks()[0];
-                if (activeVideoTrack) mixedStream.removeTrack(activeVideoTrack);
-                mixedStream.addTrack(screenTrack);
-            }
-            
             const localVideo = document.getElementById('local-video');
             if (localVideo) {
                 localVideo.srcObject = SessionState.screenStream;
-                localVideo.style.transform = "none";
+                localVideo.style.transform = "none"; // Отменяем зеркалирование для читаемости презентации
             }
             
             SessionState.isScreenSharing = true;
@@ -46,10 +38,11 @@ export async function toggleScreenShare() {
             const localContainer = document.getElementById('local-video-container');
             if (localContainer) toggleFullscreenElement(localContainer);
             
+            // Если сотрудник нажал системную кнопку браузера "Остановить совместный доступ"
             screenTrack.onended = () => stopScreenShare();
-            logChat(`// [MEDIA] Демонстрация экрана успешно сопряжена с Mesh-нодами.`, "#10b981");
+            logChat(`// [MEDIA] Демонстрация экрана успешно выведена в Mesh-контур.`, "#10b981");
         } catch (e) {
-            logChat(`// [MEDIA] Абонент отменил захват экрана: ${e.name}`, "#8b949e");
+            logChat(`// [MEDIA] Захват экрана отклонен пользователем: ${e.name}`, "#8b949e");
         }
     } else {
         stopScreenShare();
@@ -57,43 +50,17 @@ export async function toggleScreenShare() {
 }
 
 /**
- * stopScreenShare корректно гасит стрим захвата экрана и возвращает поток с веб-камеры
+ * stopScreenShare корректно гасит стрим захвата экрана и реанимирует веб-камеру
  */
-export function stopScreenShare() {
+export async function stopScreenShare() {
     if (!SessionState.isScreenSharing) return;
     
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     
+    // Аппаратно тушим треки экрана
     if (SessionState.screenStream) {
         SessionState.screenStream.getTracks().forEach(track => track.stop());
         SessionState.screenStream = null;
-    }
-    
-    const cameraTracks = SessionState.localStream ? SessionState.localStream.getVideoTracks() : [];
-    if (cameraTracks.length > 0) {
-        const cameraTrack = cameraTracks[0];
-        
-        for (let peerId in SessionState.peerConnections) {
-            const senders = SessionState.peerConnections[peerId].getSenders();
-            const videoSender = senders.find(s => s.track && s.track.kind === 'video');
-            if (videoSender) {
-                videoSender.replaceTrack(cameraTrack).catch(err => console.error(err));
-            }
-        }
-
-        // ИСПРАВЛЕНО (Возврат камеры в запись): Принудительно возвращаем трек веб-камеры в рекордер
-        if (SessionState.isRecording && window.internalMediaRecorderRef) {
-            const mixedStream = window.internalMediaRecorderRef.stream;
-            const activeVideoTrack = mixedStream.getVideoTracks()[0];
-            if (activeVideoTrack) mixedStream.removeTrack(activeVideoTrack);
-            mixedStream.addTrack(cameraTrack);
-        }
-    }
-    
-    const localVideo = document.getElementById('local-video');
-    if (localVideo) {
-        localVideo.srcObject = SessionState.localStream;
-        localVideo.style.transform = "scaleX(-1)";
     }
     
     SessionState.isScreenSharing = false;
@@ -103,5 +70,22 @@ export function stopScreenShare() {
         btn.style.backgroundColor = "#1e293b";
         btn.style.borderColor = "#334155";
     }
-    logChat(`// [MEDIA] Демонстрация экрана остановлена. Поток веб-камеры восстановлен.`, "#8b949e");
+
+    logChat(`// [MEDIA] Демонстрация остановлена. Перезапуск аппаратных треков веб-камеры...`, "#8b949e");
+    
+    // ИСПРАВЛЕНО (Уничтожение бага черного экрана): Нативно, с чистого листа инициализируем камеру!
+    // FIXED: Invoked clean media capture factory reset lifecycle to explicitly eliminate blank video viewport locks
+    await captureLocalMedia();
+
+    // Бесшовно возвращаем свежий, живой трек камеры во все активные P2P-плечи Mesh-кластера
+    if (SessionState.localStream) {
+        const freshCameraTrack = SessionState.localStream.getVideoTracks()[0];
+        for (let peerId in SessionState.peerConnections) {
+            const senders = SessionState.peerConnections[peerId].getSenders();
+            const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+            if (videoSender && freshCameraTrack) {
+                videoSender.replaceTrack(freshCameraTrack).catch(err => console.error(err));
+            }
+        }
+    }
 }

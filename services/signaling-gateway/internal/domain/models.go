@@ -33,6 +33,6 @@ type WsSession struct {
 	Command      string          `json:"command,omitempty"`
 	TargetPeerID string          `json:"target_peer_id,omitempty"`
 	Payload      json.RawMessage `json:"payload,omitempty"`
-	RecordID     string          `json:"record_id,omitempty"`   // Динамический ID сессии записи
-	MediaBytes   []byte          `json:"media_bytes,omitempty"` // Бинарные WebM-кадры из браузера
+	RecordID     string          `json:"record_id,omitempty"`    // ID сессии записи
+	MediaBase64  string          `json:"media_base64,omitempty"` // Видео кусок в кодировке Base64
 }

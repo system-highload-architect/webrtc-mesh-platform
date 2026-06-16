@@ -1,19 +1,16 @@
 package app
 
 import (
-	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
-	"webrtc-mesh-platform/pb/gen"
 	"webrtc-mesh-platform/services/signaling-gateway/internal/domain"
 
 	"github.com/gorilla/websocket"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
-// HandleWsSignal терминирует Full-Mesh WebRTC signals в RAM-шардах кластера
 func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.Conn, isModerator bool) {
 	idx := s.getShardIndex(roomID)
 	shard := s.shards[idx]
@@ -34,21 +31,11 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 	}
 	shard.mu.Unlock()
 
-	// Инициализируем защищенный gRPC-клиент к микросервису spr-storage (:50060)
-	grpcConn, err := grpc.Dial("localhost:50060", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	var storageClient gen.MediaSignalingBridgeClient
-	var grpcStream gen.MediaSignalingBridge_StreamMediaChunkClient
-
-	if err == nil && grpcConn != nil {
-		storageClient = gen.NewMediaSignalingBridgeClient(grpcConn)
-	}
+	var activeRecordFile *os.File
 
 	defer func() {
-		if grpcStream != nil {
-			_, _ = grpcStream.CloseAndRecv()
-		}
-		if grpcConn != nil {
-			_ = grpcConn.Close()
+		if activeRecordFile != nil {
+			_ = activeRecordFile.Close()
 		}
 		shard.mu.Lock()
 		delete(shard.conns[roomID], peerID)
@@ -61,6 +48,7 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 	}()
 
 	for {
+		// Возвращаем пуленепробиваемый ReadJSON
 		var incoming domain.WsSession
 		if err := ws.ReadJSON(&incoming); err != nil {
 			break
@@ -90,7 +78,7 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			_ = ws.WriteJSON(map[string]any{"type": "chat_history_dump", "logs": historyLogs})
 
 			s.broadcastToRoomExceptRaw(roomID, peerID, domain.WsSession{Type: "peer-joined", SenderID: peerID, SenderName: peerID})
-			s.log.Info("[CONTROL PLANE] Абонент [%s] зарегистрирован в RAM-комнате [%s]", peerID, roomID)
+			s.log.Info("[CONTROL PLANE] Абонент [%s] успешно зарегистрирован в RAM-комнате [%s]", peerID, roomID)
 			continue
 		}
 
@@ -101,29 +89,6 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			shard.mu.Unlock()
 
 			s.broadcastToRoomRaw(roomID, domain.WsSession{Type: "chat_broadcast", SenderID: peerID, Text: incoming.Text})
-			continue
-		}
-
-		// ИСПРАВЛЕНО (Межсервисный gRPC-стриминг медиа): Перехватываем куски видео и гоним по gRPC в spr-storage
-		// FIXED: Captured runtime media track packets over WebSocket and proxied downstream to spr-storage via gRPC stream
-		if incoming.Type == "record_chunk" && storageClient != nil {
-			if grpcStream == nil {
-				grpcStream, err = storageClient.StreamMediaChunk(context.Background())
-				if err != nil {
-					s.log.Error("[CONTROL PLANE] Ошибка открытия gRPC стрима к spr-storage: %v", err)
-					continue
-				}
-			}
-
-			if grpcStream != nil && len(incoming.MediaBytes) > 0 {
-				err = grpcStream.Send(&gen.MediaChunkRequest{
-					RecordId: incoming.RecordID,
-					Data:     incoming.MediaBytes,
-				})
-				if err != nil {
-					s.log.Error("[CONTROL PLANE] Ошибка отправки медиа-фрейма по gRPC: %v", err)
-				}
-			}
 			continue
 		}
 
@@ -153,21 +118,37 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			}
 
 			if incoming.Command == "START_RECORD" {
-				recordUnixID := fmt.Sprintf("rec_%d", time.Now().Unix())
-				s.log.Info("[CONTROL PLANE] Инициализация записи. ID: %s. Ожидание gRPC-стрима фреймов...", recordUnixID)
+				currentActiveRecordID := fmt.Sprintf("rec_%d", time.Now().Unix())
+				s.log.Info("[REC ENGINE] Открытие NVMe-файла записи. ID: %s", currentActiveRecordID)
+
+				dirPath := filepath.Join("data", "video_records")
+				_ = os.MkdirAll(dirPath, 0755)
+
+				filePath := filepath.Join(dirPath, fmt.Sprintf("%s.webm", currentActiveRecordID))
+
+				if activeRecordFile != nil {
+					_ = activeRecordFile.Close()
+				}
+
+				var err error
+				activeRecordFile, err = os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+				if err == nil {
+					_, _ = activeRecordFile.Write([]byte{0x1A, 0x45, 0xDF, 0xA3})
+				}
+
 				_ = ws.WriteJSON(map[string]any{
 					"type": "record_started",
-					"file": recordUnixID,
+					"file": currentActiveRecordID,
 				})
 				continue
 			}
 
 			if incoming.Command == "STOP_RECORD" {
-				if grpcStream != nil {
-					_, _ = grpcStream.CloseAndRecv()
-					grpcStream = nil
+				s.log.Info("[REC ENGINE] Серверный файл записи запечатан на диске.")
+				if activeRecordFile != nil {
+					_ = activeRecordFile.Close()
+					activeRecordFile = nil
 				}
-				s.log.Info("[CONTROL PLANE] Модератор Давид остановил запись. gRPC-мост к spr-storage закрыт.")
 				continue
 			}
 			continue

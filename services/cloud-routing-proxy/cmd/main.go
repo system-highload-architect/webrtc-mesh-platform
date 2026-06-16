@@ -45,7 +45,6 @@ func main() {
 	mux.HandleFunc("/api/v1/ice-config", func(w http.ResponseWriter, r *http.Request) { signalingProxy.ServeHTTP(w, r) })
 	mux.HandleFunc("/api/v1/t9", func(w http.ResponseWriter, r *http.Request) { chatProxy.ServeHTTP(w, r) })
 
-	// Прямая отдача WebM-видеофайлов с NVMe силами прокси
 	mux.HandleFunc("/api/v1/records/download", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		recordID := r.URL.Query().Get("id")
@@ -53,13 +52,22 @@ func main() {
 			http.Error(w, "🔒 [AppSec Proxy Guard]: ID записи пуст.", http.StatusBadRequest)
 			return
 		}
+
 		file := filepath.Join("data", "video_records", fmt.Sprintf("%s.webm", recordID))
 		if _, err := os.Stat(file); os.IsNotExist(err) {
 			http.Error(w, "🔒 [AppSec Proxy Guard]: Файл записи не найден.", http.StatusNotFound)
 			return
 		}
+
+		fileInfo, err := os.Stat(file)
+		if err == nil {
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", fileInfo.Size()))
+		}
+
 		w.Header().Set("Content-Type", "video/webm")
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=conference_record_%s.webm", recordID))
+		w.Header().Set("Accept-Ranges", "bytes")
+
 		http.ServeFile(w, r, file)
 	})
 
