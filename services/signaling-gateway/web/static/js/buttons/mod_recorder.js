@@ -4,13 +4,14 @@ import { logChat } from '../chat/render_log.js';
 let internalMediaRecorder = null;
 
 /**
- * executeServerRecordControl управляет START / STOP триггерами записи
+ * executeServerRecordControl управляет START / STOP триггерами записи на бэкенде Go
  */
 export function executeServerRecordControl() {
     if (!SessionState.isModerator || !SessionState.ws || SessionState.ws.readyState !== WebSocket.OPEN) return;
 
     const recBtn = document.getElementById('rec-btn');
-    if (!recBtn) return;
+    const localVideo = document.getElementById('local-video');
+    if (!recBtn || !localVideo) return;
 
     if (!SessionState.isRecording) {
         SessionState.currentServerRecordID = "";
@@ -21,23 +22,22 @@ export function executeServerRecordControl() {
             command: "START_RECORD"
         }));
         
-        // 2. Аппаратно перехватываем медиа-микс сессии (Объединяем аудио и видео треки созвона)
+        // 2. Аппаратно перехватываем единый, непрерывный видеопоток прямо с HTML-окна
         try {
-            const tracks = [];
-            if (SessionState.localStream) {
-                SessionState.localStream.getTracks().forEach(t => tracks.push(t));
-            }
-            if (SessionState.screenStream) {
-                SessionState.screenStream.getTracks().forEach(t => tracks.push(t));
-            }
-
-            const mixedStream = new MediaStream(tracks);
+            // Нативно захватываем объединенный поток (веб-камера или демка экрана — пишется всё, что видит глаз)
+            const captureStream = localVideo.captureStream ? localVideo.captureStream(30) : localVideo.mozCaptureStream(30);
             
-            // Инициализируем нативный MediaRecorder браузера с кодеком VP8/Opus
-            internalMediaRecorder = new MediaRecorder(mixedStream, { mimeType: 'video/webm;codecs=vp8,opus' });
+            // Подмешиваем аудио-дорожку локального микрофона модератора для записи голоса
+            if (SessionState.localStream && SessionState.localStream.getAudioTracks().length > 0) {
+                SessionState.localStream.getAudioTracks().forEach(track => {
+                    captureStream.addTrack(track);
+                });
+            }
 
-            // ИСПРАВЛЕНО (Бинарная gRPC нарезка): Переводим кадры в ArrayBuffer и шлем в сокет-шину бэка
-            // FIXED: Embedded continuous chunk slice pipeline for seamless upstreaming into spr-storage grpc server
+            // Инициализируем нативный MediaRecorder браузера со стандартным кодеком VP8/Opus
+            internalMediaRecorder = new MediaRecorder(captureStream, { mimeType: 'video/webm;codecs=vp8,opus' });
+
+            // Нарезаем кадры в ArrayBuffer и шлем в сокет-шину бэка
             internalMediaRecorder.ondataavailable = async (event) => {
                 if (event.data && event.data.size > 0 && SessionState.currentServerRecordID) {
                     const arrayBuffer = await event.data.arrayBuffer();
@@ -47,7 +47,7 @@ export function executeServerRecordControl() {
                         SessionState.ws.send(JSON.stringify({
                             type: "record_chunk",
                             record_id: SessionState.currentServerRecordID,
-                            media_bytes: Array.from(uint8Array) // Конвертируем в JSON-совместимый байтовый массив []byte
+                            media_bytes: Array.from(uint8Array)
                         }));
                     }
                 }
@@ -88,7 +88,7 @@ export function executeServerRecordControl() {
 }
 
 /**
- * injectRecordButton встраивает кнопку записи
+ * injectRecordButton динамически встраивает кнопку записи в дашборд модератора Давида
  */
 export function injectRecordButton() {
     const bar = document.getElementById('infrastructure-controls');
