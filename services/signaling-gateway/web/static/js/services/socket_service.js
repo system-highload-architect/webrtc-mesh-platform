@@ -10,14 +10,14 @@ import { toggleUiFreeze } from '../buttons/pause_room.js';
 export function initSocketConnection() {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     
-    // Подключаемся к L7-балансировщику API Gateway (:8080), который проксирует нас на шлюз (:8081)
+    // Подключаемся к L7-балансировщику API Gateway (:8080)
     const socketUrl = `${wsProtocol}${window.location.host}/api/v1/ws?room=${SessionState.roomId}&peer=${SessionState.myPeerId}&mod=${SessionState.isModerator}`;
     
     SessionState.ws = new WebSocket(socketUrl);
-    window.ws = SessionState.ws; // Сохраняем глобальный алиас для обратной совместимости
+    window.ws = SessionState.ws;
 
     SessionState.ws.onopen = () => {
-        // Выстреливаем стартовый b2b-пакет регистрации личности в RAM-комнате бэкенда
+        // Стартовый пакет регистрации личности в RAM-комнате бэкенда
         SessionState.ws.send(JSON.stringify({
             type: "join",
             room_id: SessionState.roomId,
@@ -33,12 +33,26 @@ export function initSocketConnection() {
                 SessionState.myId = msg.sender_id;
                 logChat(`[SYSTEM] Зашифрованный Control Plane контур взведен. ID: ${SessionState.myId}`, "#10b981");
                 
-                // Наполняем in-memory мапу участников, которые зашли в RAM-комнату РАНЬШЕ нас
                 if (Array.isArray(msg.participants)) {
-                    msg.participants.forEach(p => {
+                    for (const p of msg.participants) {
                         SessionState.peerNames[p.id] = p.name;
+                        await createPeerConnection(p.id, p.name, false);
+                    }
+                }
+                break;
+
+            // ИСПРАВЛЕНО (Бизнес-функция №1): Нативно принимаем пачку логов из RAM-памяти Go бэкенда при входе
+            // FIXED: Captured historical chat array frame payload dump from microservice database container
+            case "chat_history_dump":
+            case "chat-history-dump":
+                if (Array.isArray(msg.logs)) {
+                    msg.logs.forEach(l => {
+                        logChat(`${l.sender_id || l.sender_name}: ${l.text}`);
                     });
                 }
+                // Динамически выводим емкость буфера в плашку
+                const lbl = document.getElementById('buffer-capacity-lbl');
+                if (lbl && msg.logs) lbl.innerText = `[Capacity: ${msg.logs.length}/50k]`;
                 break;
 
             case "peer_joined":
@@ -48,8 +62,6 @@ export function initSocketConnection() {
                 SessionState.peerNames[joinedID] = joinedName;
                 
                 logChat(`[JOIN] Участник ${joinedName} вошел в Mesh-сессию`, "#fbbf24");
-                
-                // Триггерим нативную генерацию P2P-плеча WebRTC
                 await createPeerConnection(joinedID, joinedName, true);
                 break;
 
@@ -58,7 +70,6 @@ export function initSocketConnection() {
                 const leftID = msg.peer_id || msg.sender_id;
                 logChat(`[LEAVE] Участник покинул созвон`, "#ef4444");
                 
-                // Утилизируем видео-ноду из DOM-дерева и закрываем дескриптор RTCPeerConnection
                 removePeerVideo(leftID);
                 delete SessionState.peerNames[leftID];
                 break;

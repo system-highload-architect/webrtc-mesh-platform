@@ -19,5 +19,5 @@ export const SessionState = {
     
     peerConnections: {}, // peerId -> RTCPeerConnection
     peerNames: {},        // peerId -> string (displayName)
-    rtcConfig: { iceServers: [{ urls: 'stun:://google.com' }] }
+    rtcConfig: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
 };

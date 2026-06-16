@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"webrtc-mesh-platform/internal/pkg/backoff" // ПОДКЛЮЧАЕМ ОБЩИЙ БЭКОФФ ШАССИ
+	"webrtc-mesh-platform/services/signaling-gateway/internal/domain"
 )
 
 // StartBackgroundJanitors запускает фоновые b2b-конвейеры мониторинга таймаутов и бэкоффа
@@ -86,7 +87,7 @@ func (s *SignalingService) monitorIdleRoomsBackoff(ctx context.Context) {
 
 				go func(rID string) {
 					for attempt := 1; attempt <= 4; attempt++ {
-						// ВЫЗЫВАЕМ ОБЩИЙ АЛГОРИТМ ИЗ ШАССИ С ДЖИТТЕРОМ (Req. 4)
+						// ВЫЗЫВАЕМ ОБЩИЙ АЛГОРИТМ ИЗ ШАССИ С ДЖИТТЕРОМ
 						backoffDuration := backoffEngine.CalculateDelay(attempt)
 
 						select {
@@ -95,14 +96,18 @@ func (s *SignalingService) monitorIdleRoomsBackoff(ctx context.Context) {
 						case <-time.After(backoffDuration):
 							if s.isRoomStillIdle(rID) {
 								s.log.Info("💥 BACKOFF RETRY [%d/4] -> Отправка фрейма STIMULUS_ALERT модератору комнаты %s", attempt, rID)
-								s.broadcastToRoom(rID, map[string]any{
-									"type": "stimulus_alert",
-									"text": fmt.Sprintf("Вы еще здесь? Сессия закроется автоматически через %v.", backoffDuration),
+
+								// ИСПРАВЛЕНО: Применяем raw-метод вещания и структуру domain.WsSession твоего сайта
+								s.broadcastToRoomRaw(rID, domain.WsSession{
+									Type: "stimulus_alert",
+									Text: fmt.Sprintf("Вы еще здесь? Сессия закроется автоматически через %v.", backoffDuration),
 								})
 
 								if attempt == 4 {
 									s.log.Error("CRITICAL TIMEOUT -> Реакции не последовало. Принудительное схлопывание сессии %s", rID)
-									s.broadcastToRoom(rID, map[string]any{"type": "force_kick"})
+
+									// ИСПРАВЛЕНО: Применяем raw-метод вещания для финального кика по таймауту
+									s.broadcastToRoomRaw(rID, domain.WsSession{Type: "force_kick"})
 									s.forceCloseRoom(rID)
 								}
 							} else {
@@ -110,7 +115,7 @@ func (s *SignalingService) monitorIdleRoomsBackoff(ctx context.Context) {
 							}
 						}
 					}
-				}(roomID)
+				}(roomID) // Убедись, что аргумент roomID передается в горутину на закрытии скобки
 			}
 		}
 		shard.mu.RUnlock()

@@ -4,32 +4,51 @@ import { captureLocalMedia } from './services/media_capture.js';
 import { bindDashboardEvents } from './events/dashboard_binder.js';
 
 /**
- * routeConferenceSession запускает оркестрацию распределенных JS-модулей
+ * routeConferenceSession запускает пошаговую b2b-оркестрацию распределенных JS-модулей
  */
 async function routeConferenceSession() {
     const urlParams = new URLSearchParams(window.location.search);
     
+    // Парсим персистентные конфигурационные параметры из URL-строки перехода
     SessionState.roomId = urlParams.get('room') || "demo_room";
     const tokenStr = urlParams.get('token') || "";
     SessionState.isModerator = tokenStr.includes("david_organizer");
     
-    // Динамически выставляем уникальный ID пира в рамках Mesh-контура
-    SessionState.myPeerId = urlParams.get('peer') || (SessionState.isModerator ? "David_Moderator" : `Peer_${Math.floor(Math.random() * 1000)}_Guest`);
+    // Считываем уникальный Peer ID ноды, сгенерированный на этапе лобби-контроля
+    SessionState.myPeerId = urlParams.get('peer') || (SessionState.isModerator ? "David_Moderator" : "User_Guest");
     SessionState.username = SessionState.myPeerId;
 
-    // Выводим ID комнаты на интерфейс в контейнер-акцептор
+    // Выводим ID комнаты на интерфейс статус-бара
     const roomLbl = document.getElementById('room-lbl');
-    if (roomLbl) roomLbl.innerText = SessionState.roomId;
+    if (roomLbl) {
+        roomLbl.innerText = SessionState.roomId;
+    }
 
-    // Инициализируем аппаратный слой виртуальных или реальных медиа-треков
+    // Выводим Claim-роль участника на текстовый значок
+    const roleBadge = document.getElementById('role-badge');
+    if (roleBadge) {
+        if (SessionState.isModerator) {
+            roleBadge.innerText = "👑 МОДЕРАТОР СЕССИИ (ORGANIZER)";
+            roleBadge.style.color = "#319795";
+            
+            // Нативно открываем пульт модерации Давида, инжектированный Go-шаблонизатором
+            const modControls = document.getElementById('moderator-controls');
+            if (modControls) modControls.style.display = "flex";
+        } else {
+            roleBadge.innerText = "📱 СОТРУДНИК ПЛАТФОРМЫ (EMPLOYEE)";
+            roleBadge.style.color = "#4299e1";
+        }
+    }
+
+    // 1. Асинхронно запускаем аппаратный захват веб-камеры и микрофона со стейтами лобби
     await captureLocalMedia();
 
-    // Включаем сокет-подключение плоскости управления к API Gateway
+    // 2. Включаем полнодуплексный сокет-канал Gateway к API Gateway балансировщику
     initSocketConnection();
 
-    // Биндим события на все кнопки нижнего и бокового пультов
+    // 3. Биндим чистые изолированные Event Listeners на кнопки дашборда управления треками
     bindDashboardEvents();
 }
 
-// Запускаем маршрутизатор сессии
+// Запускаем рантайм комнаты конференции
 routeConferenceSession();

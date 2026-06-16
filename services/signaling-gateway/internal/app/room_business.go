@@ -54,7 +54,7 @@ func (s *SignalingService) FetchIceServersConfig() map[string]any {
 	return map[string]any{
 		"iceServers": []map[string]any{
 			{
-				"urls": []string{"stun:://google.com", "stun:://google.com"},
+				"urls": []string{"stun:stun.l.google.com:19302", "stun:stun.l.google.com:19302"},
 			},
 			{
 				// Промышленный Coturn TURN-сервер для пробивки корпоративных Firewall и симметричных NAT

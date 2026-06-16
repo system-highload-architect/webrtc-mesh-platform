@@ -1,7 +1,12 @@
+import { SessionState } from '../session_context.js';
 import { sendMsg } from '../chat/send_message.js';
+import { checkT9, handleTabCompletion } from '../chat/t9_predict.js';
 import { toggleAudio } from '../buttons/toggle_mic.js';
 import { toggleVideo } from '../buttons/toggle_cam.js';
 import { toggleScreenShare } from '../buttons/screen_share.js';
+import { togglePauseRoomSignal } from '../buttons/pause_room.js';
+import { executeRemoteMuteTargeted, executeRemoteKickTargeted } from '../buttons/mod_orchestrator.js';
+import { injectRecordButton } from '../buttons/mod_recorder.js'; // Импортируем рекордер
 import { hangUp } from '../buttons/hangup.js';
 
 /**
@@ -14,14 +19,44 @@ export function bindDashboardEvents() {
     const screenBtn = document.getElementById('screen-toggle');
     const hangupBtn = document.getElementById('hangup-btn');
     const leaveBtn = document.getElementById('leave-btn');
+    const chatInput = document.getElementById('chat-input');
+    const t9Placeholder = document.getElementById('t9-placeholder');
+    const videoGrid = document.getElementById('video-grid');
 
-    // Навешиваем атомарные бизнес-функции на клики кнопок нижнего и бокового пультов
     if (sendBtn) sendBtn.onclick = sendMsg;
     if (audioBtn) audioBtn.onclick = toggleAudio;
     if (videoBtn) videoBtn.onclick = toggleVideo;
     if (screenBtn) screenBtn.onclick = toggleScreenShare;
     
-    // Кнопка «Завершить» на панели и «Покинуть контур» на статус-баре вызывают один деструктор
     if (hangupBtn) hangupBtn.onclick = hangUp;
     if (leaveBtn) leaveBtn.onclick = hangUp;
+
+    if (chatInput && t9Placeholder) {
+        let activeSuggestion = "";
+        chatInput.oninput = async () => { activeSuggestion = await checkT9(chatInput, t9Placeholder); };
+        chatInput.onkeydown = (e) => {
+            if (e.key === "Tab" && activeSuggestion) {
+                e.preventDefault();
+                handleTabCompletion(chatInput, t9Placeholder, activeSuggestion);
+                activeSuggestion = "";
+            }
+            if (e.key === "Enter") { sendMsg(); activeSuggestion = ""; }
+        };
+    }
+
+    if (SessionState.isModerator && videoGrid) {
+        videoGrid.onclick = (e) => {
+            const muteTarget = e.target.closest('.target-mute-btn');
+            const kickTarget = e.target.closest('.target-kick-btn');
+            if (muteTarget) { e.stopPropagation(); executeRemoteMuteTargeted(muteTarget.getAttribute('data-peer')); }
+            if (kickTarget) { e.stopPropagation(); executeRemoteKickTargeted(kickTarget.getAttribute('data-peer')); }
+        };
+
+        const pauseBtn = document.getElementById('pause-btn-action');
+        if (pauseBtn) pauseBtn.onclick = togglePauseRoomSignal;
+
+        // ИСПРАВЛЕНО: Инжектируем кнопку "🔴 Запись" на нижний дашборд Давида
+        // FIXED: Dynamically mounted administrative session recorder node trigger
+        injectRecordButton();
+    }
 }

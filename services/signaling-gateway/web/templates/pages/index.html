@@ -1,14 +1,25 @@
 {{define "content"}}
-<div id="provisioning-gateway-root" class="gateway-container" style="display: flex; flex-direction: column; gap: 20px; max-width: 500px; margin: 40px auto; background: #0f172a; padding: 24px; border: 1px solid #1e293b; border-radius: 8px;">
-    <h3 style="color: #319795; margin: 0; font-family: monospace;">👑 WebRTC Mesh Provisioning</h3>
-    <p style="color: #8b949e; font-size: 13px; margin: 0;">Панель управления Владельца (ORGANIZER). Инициализируйте RAM-шард сессии созвона.</p>
+<div id="provisioning-gateway-root" class="gateway-container" style="display: flex; flex-direction: column; gap: 20px; max-width: 500px; margin: 40px auto; background: #0f172a; padding: 24px; border: 1px solid #1e293b; border-radius: 8px; box-sizing: border-box;">
+    
+    <h3 style="color: #319795; margin: 0; font-family: monospace; font-size: 1.15rem; font-weight: bold; border-bottom: 1px solid #1e293b; padding-bottom: 12px;">👑 WebRTC Mesh Provisioning</h3>
+    <p style="color: #8b949e; font-size: 12px; margin: 0; line-height: 1.4;">Панель управления Владельца (ORGANIZER). Пройдите верификацию identity и инициализируйте RAM-шард сессии.</p>
 
-    <!-- Сюда мы на следующих шагах внедрим компоненты авторизации и генерации ссылок -->
-    <div id="provisioning-workspace-node" style="display: flex; flex-direction: column; gap: 16px;">
-        <!-- COMPONENT PLACEHOLDER -->
+    <!-- ИСПРАВЛЕНО (Явный инжект компонентов): Вызываем изолированные b2b-шаблоны напрямую, исключая каскадные перекрытия в памяти Go -->
+    <!-- FIXED: Explicitly invoked decoupled component macros within primary page layout node to fix empty template evaluation bugs -->
+    <div id="provisioning-workspace-node" style="display: flex; flex-direction: column; gap: 16px; width: 100%; box-sizing: border-box;">
+        
+        <!-- Шаг 1: Форма криптографической авторизации личности -->
+        {{template "provision_auth" .}}
+        
+        <!-- Шаг 2: Модуль выделения RAM-памяти под комнату -->
+        {{template "provision_room" .}}
+        
+        <!-- Шаг 3: Центр сборки и копирования инвайт-ссылок звонка -->
+        {{template "provision_links" .}}
+        
     </div>
 </div>
 
-<!-- Подключаем строго изолированный JS-файл этой роли -->
+<!-- Скрипт-контроллер, обслуживающий только бизнес-логику этой страницы -->
 <script type="module" src="/static/js/index_page.js?v={{.Version}}"></script>
 {{end}}
