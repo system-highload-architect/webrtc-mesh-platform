@@ -1,92 +1,47 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"net"
 	"time"
 
-	"webrtc-mesh-platform/internal/chassis/config"
+	"webrtc-mesh-platform/internal/chassis/config" // ПЛАТФОРМЕННОЕ ШАССИ КОНФИГУРАЦИИ
 	"webrtc-mesh-platform/internal/pkg/logger"
 	"webrtc-mesh-platform/internal/pkg/shutdown"
 	"webrtc-mesh-platform/pb/gen"
+	"webrtc-mesh-platform/services/auth-service/internal/app"
+	transport "webrtc-mesh-platform/services/auth-service/transport/grpc"
 
 	"google.golang.org/grpc"
 )
 
-// authGrpcServer реализует скомпилированный Protobuf-интерфейс AuthenticationBridge
-type authGrpcServer struct {
-	gen.UnimplementedAuthenticationBridgeServer
-	log *logger.AppLogger
-}
-
-// LoginSubscriber эмулирует верификацию логина и подписание b2b JWT токена
-func (s *authGrpcServer) LoginSubscriber(ctx context.Context, req *gen.LoginRequest) (*gen.LoginResponse, error) {
-	if req.Email == "david@clearway.ru" && req.PasswordRaw == "admin" {
-		return &gen.LoginResponse{
-			IsSuccess: true,
-			JwtToken:  "david_organizer",
-			ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
-		}, nil
-	}
-	return &gen.LoginResponse{IsSuccess: false, JwtToken: ""}, nil
-}
-
-// GetSubscriberProfile извлекает Claim-роль сотрудника на основе токена авторизации
-// ИСПРАВЛЕНО (Enterprise Гибридный Контур): Валидируем паспорта личностей
-// FIXED: Integrated dynamic corporate token claims validation parser to identify organizer roles
-func (s *authGrpcServer) GetSubscriberProfile(ctx context.Context, req *gen.ProfileRequest) (*gen.ProfileResponse, error) {
-	token := req.UserId // Пробрасываем токен в качестве идентификатора
-
-	if token == "david_organizer" {
-		return &gen.ProfileResponse{
-			UserId:   "david_101",
-			Name:     "Давид (Лид)",
-			Email:    "david@clearway.ru",
-			UserRole: "ORGANIZER",
-		}, nil
-	}
-
-	// Если токен равен имени сотрудника с суффиксом корпоративной почты, это легитимный Employee
-	if token != "" && (token == "Konstantin" || token == "Anna") {
-		return &gen.ProfileResponse{
-			UserId:   token + "_emp",
-			Name:     token,
-			Email:    token + "@clearway.ru",
-			UserRole: "EMPLOYEE",
-		}, nil
-	}
-
-	// Если токена нет или он не распознан — возвращаем пустую роль (фолбэк в гостя)
-	return &gen.ProfileResponse{
-		UserId:   "guest_" + fmt.Sprintf("%d", time.Now().UnixNano()%1000),
-		Name:     "Гость_" + token,
-		Email:    "guest@public.ru",
-		UserRole: "GUEST", // Сигнализируем шлюзу, что это внешний неавторизованный юзер
-	}, nil
-}
-
 func main() {
+	// 1. Инициализируем локальный контур конфигурации из общего шасси и structured логер
 	cfg := config.LoadGlobalConfig("services/auth-service/config.yaml")
 	log := logger.NewAppLogger(cfg.ServiceName, cfg.LogLevel)
-	log.Info("Запуск криптографического Identity Plane сервиса auth-service...")
+	log.Info("Запуск b2b gRPC-сервиса авторизации абонентов и генерации JWT...")
 
-	// Открываем TCP сокет на выделенном b2b порту :50051
-	bindAddr := "0.0.0.0:50051"
-	listener, err := net.Listen("tcp", bindAddr)
-	if err != nil {
-		log.Fatal("Не удалось открыть сетевой gRPC-порт авторизации %s: %v", bindAddr, err)
-	}
+	// 2. Взводим декомпозированное Use-Case ядро через интерфейсный контракт (Strict DI)
+	var authCore app.AuthUseCaseManager = app.NewAuthService(log)
+
+	// 3. Собираем gRPC-транспорт адаптер
+	grpcHandler := transport.NewGrpcHandler(authCore)
 
 	server := grpc.NewServer()
-	gen.RegisterAuthenticationBridgeServer(server, &authGrpcServer{log: log})
+	gen.RegisterAuthenticationBridgeServer(server, grpcHandler)
+
+	// 4. Открываем сетевой сокет на прослушивание порта :50059
+	listener, err := net.Listen("tcp", cfg.BindAddr)
+	if err != nil {
+		log.Fatal("Не удалось открыть сетевой gRPC-порт %s: %v", cfg.BindAddr, err)
+	}
 
 	go func() {
-		log.Info("📡 gRPC-сервер аутентификации auth-service успешно запущен на порту :50051")
+		log.Info("gRPC Authentication сервер успешно запущен на %s", cfg.BindAddr)
 		if err := server.Serve(listener); err != nil {
-			log.Fatal("Крах рантайма gRPC сервера auth-service: %v", err)
+			log.Fatal("Крах рантайма gRPC сервера авторизации: %v", err)
 		}
 	}()
 
+	// 5. Плавная остановка (Graceful Shutdown) для зачистки сетевых сокетов
 	shutdown.ListenSignals(log, server, time.Duration(cfg.ShutdownTimeout)*time.Second)
 }
