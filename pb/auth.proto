@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "webrtc-mesh-platform/pb/gen;gen";
+
+// AuthenticationBridge управляет учетными записями и сессиями JWT в auth-service
+service AuthenticationBridge {
+    // Авторизация пользователя и выдача защищенного b2b JWT токена
+    rpc LoginSubscriber(LoginRequest) returns (LoginResponse);
+    
+    // Получить профиль пользователя из ScyllaDB (SPR)
+    rpc GetSubscriberProfile(ProfileRequest) returns (ProfileResponse);
+}
+
+message LoginRequest {
+    string email = 1;
+    string password_raw = 2;
+}
+
+message LoginResponse {
+    bool is_success = 1;
+    string jwt_token = 2; 
+    int64 expires_at = 3;
+}
+
+message ProfileRequest {
+    string user_id = 1;
+}
+
+message ProfileResponse {
+    string user_id = 1;
+    string name = 2;
+    string email = 3;
+    string user_role = 4; // "ORGANIZER" / "EMPLOYEE" / "GUEST"
+}
