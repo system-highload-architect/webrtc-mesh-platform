@@ -1,13 +1,13 @@
 {{define "content"}}
 <div id="conference-session-root" style="display: flex; flex-direction: column; gap: 16px; height: calc(100vh - 40px); box-sizing: border-box; width: 100%;">
     
-    <!-- Компонент №1: Верхний статус-бар (Инфо о комнате и Claim-роли) -->
+    <!-- Компонент №1: Upper status display container context area -->
     {{template "conf_header" .}}
 
     <!-- Главная рабочая b2b-зона (Flex Grid) -->
     <div class="main-workspace" style="display: flex; flex-direction: row; height: calc(100vh - 150px); max-height: calc(100vh - 150px); width: 100%; overflow: hidden; box-sizing: border-box; gap: 16px;">
         
-        <!-- Компонент №2: Симметричная Flex Grid матрица окон видеокамер WebRTC -->
+        <!-- Компонент №2: Видеоматрица WebRTC -->
         {{template "conf_video_grid" .}}
 
         <!-- Терминальная панель логгера -->
@@ -17,25 +17,25 @@
                 <span id="buffer-capacity-lbl" style="color: var(--text-muted); font-size: 10px;">[Capacity: 0/50k]</span>
             </div>
             
-            <!-- Компонент №3: Изолированная область вывода текстовых фреймов чата -->
+            <!-- Компонент №3: Область вывода текстовых фреймов чата -->
             {{template "conf_chat_log" .}}
             
-            <!-- Компонент №4: Слой предиктивного Т9 инпута префиксного дерева Trie -->
+            <!-- Компонент №4: Слой Т9 инпута префиксного дерева Trie -->
             {{template "conf_chat_input" .}}
 
-            <!-- ИСПРАВЛЕНО (Возврат пульта модератора): Нативно инжектируем b2b-панель оркестрации строго по Claim-роли Давида -->
-            <!-- FIXED: Injected conditional administrative control viewport map strictly for verified room organizers -->
+            <!-- ИСПРАВЛЕНО (Переработка кнопок по ТЗ Давида): Изменили названия и ID инлайн-кнопок управления залом -->
+            <!-- FIXED: Updated native layout element identifiers to map explicit centralized audio/video blocks -->
             {{if .IsModerator}}
             <div id="moderator-controls" style="display: flex; gap: 4px; padding: 10px; background: #090d16; border-top: 1px solid var(--border-slate); width: 100%; box-sizing: border-box;">
-                <button class="btn-sandbox" id="mute-btn-action" style="flex:1; background:#1e293b; color:#fff; border:1px solid #334155; padding:6px; font-size:11px; border-radius:4px; font-family:monospace; cursor:pointer;">🎙️ Mute Guest</button>
-                <button class="btn-sandbox" id="kick-btn-action" style="flex:1; background:#1e293b; color:#ef4444; border:1px solid #7f1d1d; padding:6px; font-size:11px; border-radius:4px; font-family:monospace; cursor:pointer;">❌ Kick Guest</button>
+                <button class="btn-sandbox" id="mute-all-audio-btn" style="flex:1; background:#1e293b; color:#ecc94b; border:1px solid #334155; padding:6px; font-size:11px; border-radius:4px; font-family:monospace; cursor:pointer; font-weight: bold;">🎙️ Блок звука</button>
+                <button class="btn-sandbox" id="mute-all-video-btn" style="flex:1; background:#1e293b; color:#ef4444; border:1px solid #7f1d1d; padding:6px; font-size:11px; border-radius:4px; font-family:monospace; cursor:pointer; font-weight: bold;">📷 Блок видео</button>
                 <button class="btn-sandbox" id="pause-btn-action" style="flex:1; background:#1e293b; color:#ecc94b; border:1px solid #334155; padding:6px; font-size:11px; border-radius:4px; font-family:monospace; cursor:pointer;">⏸️ Пауза</button>
             </div>
             {{end}}
         </div>
     </div>
 
-    <!-- Компонент №5: Пульт нижних кнопок управления аппаратными треками -->
+    <!-- Компонент №5: Пульт нижних кнопок -->
     {{template "conf_controls_bar" .}}
 
 </div>

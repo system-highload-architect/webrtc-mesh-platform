@@ -15,15 +15,23 @@ export function initSocketConnection() {
     window.ws = SessionState.ws;
 
     SessionState.ws.onopen = () => {
+        const roomDisplay = document.getElementById('room-lbl');
+        if (roomDisplay) roomDisplay.innerText = SessionState.roomId;
+
+        const roleBadge = document.getElementById('role-badge');
+        if (roleBadge) {
+            roleBadge.innerText = SessionState.isModerator ? "👑 ОРГАНИЗАТОР КОНТУРА" : "📡 СОТРУДНИК СЕССИИ";
+            roleBadge.style.color = SessionState.isModerator ? "#ecc94b" : "#3b82f6";
+        }
+
         SessionState.ws.send(JSON.stringify({
-            type: "join",
-            room_id: SessionState.roomId,
-            sender_name: SessionState.myPeerId
+            type: "join", room_id: SessionState.roomId, sender_name: SessionState.myPeerId
         }));
     };
 
     SessionState.ws.onmessage = async (event) => {
         const msg = JSON.parse(event.data);
+        const grid = document.getElementById('video-grid');
         
         switch (msg.type) {
             case "waiting_for_moderator":
@@ -47,7 +55,7 @@ export function initSocketConnection() {
 
             case "room_activated":
                 if (!SessionState.isModerator) {
-                    logChat("[SYSTEM] Владелец вошел! Инициализация автоматического сопряжения комнат...", "#10b981");
+                    logChat("[SYSTEM] Владелец вошел! Инициализация automatic сопряжения комнат...", "#10b981");
                     setTimeout(() => {
                         window.location.reload();
                     }, 400);
@@ -58,9 +66,6 @@ export function initSocketConnection() {
                 SessionState.myId = msg.sender_id;
                 logChat(`[SYSTEM] Зашифрованный Control Plane контур взведен. ID: ${SessionState.myId}`, "#10b981");
                 
-                // ИСПРАВЛЕНО (Уничтожение гонки офферов): Новый зашедший участник (у которого страница ТОЛЬКО ЧТО загрузилась)
-                // сам выступает активным Инициатором коннекта (isInitiator = true) ко всей исторической цепочке старожилов!
-                // FIXED: Enforced incoming peer initialization schema (isInitiator = true) inside welcome handler frame
                 if (Array.isArray(msg.participants)) {
                     for (const p of msg.participants) {
                         SessionState.peerNames[p.id] = p.name;
@@ -80,16 +85,12 @@ export function initSocketConnection() {
                 if (chatBoxNode) chatBoxNode.scrollTop = chatBoxNode.scrollHeight;
                 break;
 
-            case "peer_joined":
             case "peer-joined":
                 const joinedID = msg.peer_id || msg.sender_id;
                 const joinedName = msg.sender_name || joinedID;
                 SessionState.peerNames[joinedID] = joinedName;
                 
                 logChat(`[JOIN] Участник ${joinedName} вошел в Mesh-сессию`, "#fbbf24");
-                
-                // ИСПРАВЛЕНО (Пассивное ожидание старожилов): Старожилы комнаты (включая Давида), чьи страницы уже давно открыты,
-                // переводят канал в состояние пассивного ожидания (isInitiator = false) и чисто принимают входящий оффер от гостя!
                 await createPeerConnection(joinedID, joinedName, false);
                 break;
 
@@ -133,14 +134,50 @@ export function initSocketConnection() {
                 toggleUiFreeze(false);
                 break;
                 
-            case "force_mute":
-                logChat("[ORCHESTRATION] Администратор ограничил ваш микрофон (Режим доклада).", "#ef4444");
+            // ИСПРАВЛЕНО (Безвозвратный лок микрофонов зала ТЗ Давида):
+            // Насильно гасим звук рядового сотрудника и намертво блокируем кнопку включения в футере!
+            // FIXED: Activated guest audio track lock context and disabled footer button node clicks
+            case "force_mute_audio_lock":
+                logChat("[ORCHESTRATION] Ведущий заблокировал ваш микрофон (Режим доклада). Включение запрещено.", "#ef4444");
                 SessionState.isAudioMuted = true;
-                if (SessionState.localStream) { SessionState.localStream.getAudioTracks().forEach(t => t.enabled = false); }
+                
+                if (SessionState.localStream) {
+                    SessionState.localStream.getAudioTracks().forEach(t => t.enabled = false);
+                }
+                
                 const audioBtn = document.getElementById('audio-toggle');
-                if (audioBtn) { audioBtn.innerText = "🎤 Микрофон: выкл"; audioBtn.style.backgroundColor = "#7f1d1d"; }
+                if (audioBtn) {
+                    audioBtn.innerText = "🎤 Микрофон заблокирован";
+                    audioBtn.style.backgroundColor = "#451a03"; // Предупреждающий b2b-цвет блокировки устройства
+                    audioBtn.style.borderColor = "#7c2d12";
+                    audioBtn.style.pointerEvents = "none"; // Глухой аппаратный запрет клика мыши!
+                    audioBtn.style.opacity = "0.5";
+                }
                 break;
 
+            // ИСПРАВЛЕНО (Безвозвратный лок видеокамер зала ТЗ Давида):
+            // Насильно гасим камеру рядового сотрудника и намертво блокируем кнопку включения в футере!
+            // FIXED: Activated guest video track lock context and disabled footer button node clicks
+            case "force_mute_video_lock":
+                logChat("[ORCHESTRATION] Ведущий заблокировал вашу видеокамеру (Режим доклада). Включение запрещено.", "#ef4444");
+                SessionState.isVideoMuted = true;
+                
+                if (SessionState.localStream) {
+                    SessionState.localStream.getVideoTracks().forEach(t => t.enabled = false);
+                }
+                
+                const videoBtn = document.getElementById('video-toggle');
+                if (videoBtn) {
+                    videoBtn.innerText = "📷 Камера заблокирована";
+                    videoBtn.style.backgroundColor = "#451a03";
+                    videoBtn.style.borderColor = "#7c2d12";
+                    videoBtn.style.pointerEvents = "none"; // Глухой аппаратный запрет клика мыши!
+                    videoBtn.style.opacity = "0.5";
+                }
+                const localVideo = document.getElementById('local-video');
+                if (localVideo) localVideo.style.opacity = "0.15"; // Уводим локальное превью в прозрачность
+                break;
+                
             case "force_kick":
                 alert("Вы были удалены из конференции модератором сессии.");
                 window.location.href = "/";
@@ -148,7 +185,60 @@ export function initSocketConnection() {
         }
     };
 
-    SessionState.ws.onerror = (err) => {
-        console.error("[SOCKET ERROR] Сбой сигнального туннеля Gateway:", err);
-    };
+    // Делегированный перехват кликов по кнопке "⭐ Спикер" на видеоплитках гостей
+    document.addEventListener('click', (e) => {
+        if (e.target && e.target.classList.contains('target-speaker-btn')) {
+            let targetPeerID = e.target.getAttribute('data-peer');
+            if (!targetPeerID) return;
+
+            if (targetPeerID === "LOCAL_ME") { targetPeerID = SessionState.myPeerId; }
+
+            const localContainer = document.getElementById('local-video-container');
+            const targetWrapper = targetPeerID === SessionState.myPeerId ? localContainer : document.getElementById(`video-${targetPeerID}`);
+            const isAlreadySpeaker = targetWrapper ? targetWrapper.classList.contains('active-speaker-focus') : false;
+
+            if (SessionState.ws && SessionState.ws.readyState === WebSocket.OPEN) {
+                SessionState.ws.send(JSON.stringify({
+                    type: "control_frame", command: isAlreadySpeaker ? "RESET_SPEAKER" : "SET_SPEAKER", target_peer_id: targetPeerID
+                }));
+            }
+        }
+    });
+
+    // Клики кнопок админ панели
+    setTimeout(() => {
+        // ИСПРАВЛЕНО (Авторитарный блок звука ТЗ Давида): Пушим GLOBAL_MUTE_AUDIO и защищаем ID Спикера
+        // FIXED: Dispatched control frame payload to block room tracks while filtering active speaker ID
+        const muteAllAudioBtn = document.getElementById('mute-all-audio-btn');
+        if (muteAllAudioBtn) {
+            muteAllAudioBtn.onclick = () => {
+                if (SessionState.ws && SessionState.ws.readyState === WebSocket.OPEN) {
+                    const currentActiveSpeaker = SessionState.activeSpeakerId || "";
+                    SessionState.ws.send(JSON.stringify({
+                        type: "control_frame",
+                        command: "GLOBAL_MUTE_AUDIO",
+                        target_peer_id: currentActiveSpeaker
+                    }));
+                }
+            };
+        }
+
+        // ИСПРАВЛЕНО (Авторитарный блок видео ТЗ Давида): Пушим GLOBAL_MUTE_VIDEO и защищаем ID Спикера
+        // FIXED: Dispatched control frame payload to block room tracks while filtering active speaker ID
+        const muteAllVideoBtn = document.getElementById('mute-all-video-btn');
+        if (muteAllVideoBtn) {
+            muteAllVideoBtn.onclick = () => {
+                if (SessionState.ws && SessionState.ws.readyState === WebSocket.OPEN) {
+                    const currentActiveSpeaker = SessionState.activeSpeakerId || "";
+                    SessionState.ws.send(JSON.stringify({
+                        type: "control_frame",
+                        command: "GLOBAL_MUTE_VIDEO",
+                        target_peer_id: currentActiveSpeaker
+                    }));
+                }
+            };
+        }
+    }, 1000);
+
+    SessionState.ws.onerror = (err) => { console.error("[SOCKET ERROR]:", err); };
 }

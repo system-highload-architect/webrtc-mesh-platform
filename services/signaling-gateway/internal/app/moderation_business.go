@@ -243,7 +243,53 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 				}
 				continue
 			}
-			continue
+
+			if incoming.Command == "GLOBAL_MUTE_AUDIO" {
+				s.log.Info("🚨 [CONTROL PLANE] Запуск режима лекции: Блокировка звука пассивного зала")
+
+				idx := s.getShardIndex(roomID)
+				shard := s.shards[idx]
+				shard.mu.RLock()
+
+				if shard.conns[roomID] != nil {
+					for targetID, peerConn := range shard.conns[roomID] {
+						// Если пир — это Создатель (Давид) или назначенный Спикер (TargetPeerID с фронта) — пропускаем!
+						if targetID == "David_Moderator" || targetID == incoming.TargetPeerID {
+							continue
+						}
+						if peerConn != nil && peerConn.WS != nil {
+							_ = peerConn.WS.WriteJSON(map[string]string{
+								"type": "force_mute_audio_lock",
+							})
+						}
+					}
+				}
+				shard.mu.RUnlock()
+				continue
+			}
+
+			if incoming.Command == "GLOBAL_MUTE_VIDEO" {
+				s.log.Info("🚨 [CONTROL PLANE] Запуск режима лекции: Блокировка видеокамер пассивного зала")
+
+				idx := s.getShardIndex(roomID)
+				shard := s.shards[idx]
+				shard.mu.RLock()
+
+				if shard.conns[roomID] != nil {
+					for targetID, peerConn := range shard.conns[roomID] {
+						if targetID == "David_Moderator" || targetID == incoming.TargetPeerID {
+							continue
+						}
+						if peerConn != nil && peerConn.WS != nil {
+							_ = peerConn.WS.WriteJSON(map[string]string{
+								"type": "force_mute_video_lock",
+							})
+						}
+					}
+				}
+				shard.mu.RUnlock()
+				continue
+			}
 		}
 
 		if incoming.TargetID != "" {

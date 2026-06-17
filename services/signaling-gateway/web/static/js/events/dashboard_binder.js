@@ -6,8 +6,13 @@ import { toggleVideo } from '../buttons/toggle_cam.js';
 import { toggleScreenShare } from '../buttons/screen_share.js';
 import { togglePauseRoomSignal } from '../buttons/pause_room.js';
 import { executeRemoteMuteTargeted, executeRemoteKickTargeted } from '../buttons/mod_orchestrator.js';
-import { injectRecordButton } from '../buttons/mod_recorder.js'; // Подключаем SOLID-модуль записи
+import { injectRecordButton } from '../buttons/mod_recorder.js';
 import { hangUp } from '../buttons/hangup.js';
+
+// ИСПРАВЛЕНО (Абсолютные b2b-импорты модулей блоков): Подключаем новые изолированные JS-файлы
+// FIXED: Swapped relative targets to secure absolute path resolution routines in Windows environments
+import { executeGlobalAudioBlock } from '/static/js/buttons/mod_mute_all_audio.js';
+import { executeGlobalVideoBlock } from '/static/js/buttons/mod_mute_all_video.js';
 
 /**
  * bindDashboardEvents привязывает изолированные ESM-обработчики к кнопкам управления UI
@@ -52,8 +57,17 @@ export function bindDashboardEvents() {
             if (kickTarget) { e.stopPropagation(); executeRemoteKickTargeted(kickTarget.getAttribute('data-peer')); }
         };
 
+        // Твоя оригинальная Пауза — сохранена без единого изменения
         const pauseBtn = document.getElementById('pause-btn-action');
         if (pauseBtn) pauseBtn.onclick = togglePauseRoomSignal;
+
+        // ИСПРАВЛЕНО (Бинд кнопок тотального Блока звука и видео Давида):
+        // Привязываем клики к новым инлайновым идентификаторам кнопок из conference.html
+        const muteAllAudioBtn = document.getElementById('mute-all-audio-btn');
+        if (muteAllAudioBtn) muteAllAudioBtn.onclick = executeGlobalAudioBlock;
+
+        const muteAllVideoBtn = document.getElementById('mute-all-video-btn');
+        if (muteAllVideoBtn) muteAllVideoBtn.onclick = executeGlobalVideoBlock;
 
         injectRecordButton();
     }
