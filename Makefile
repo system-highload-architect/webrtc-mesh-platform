@@ -3,10 +3,7 @@
 proto:
 	@echo "⚙️ Компиляция WebRTC Protobuf контрактов в Go-структуры..."
 	@mkdir -p pb/gen
-	@protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative pb/*.proto
-	@mkdir -p pb/gen
-	@mv pb/pb/gen/* pb/gen/ 2>/dev/null || true
-	@rm -rf pb/pb 2>/dev/null || true
+	@protoc --proto_path=. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative pb/*.proto
 	@echo "✅ Контракты успешно скомпилированы в pb/gen/"
 
 # Локальный сквозной запуск всех 3-х медиа-компонентов кластера в фоне одного терминала

@@ -4,17 +4,6 @@ package pb;
 
 option go_package = "webrtc-mesh-platform/pb/gen;gen";
 
-import "google/protobuf/timestamp.proto";
-
-// AuthenticationBridge управляет учетными записями и сессиями JWT
-service AuthenticationBridge {
-    // Авторизация пользователя и выдача защищенного b2b JWT токена
-    rpc LoginSubscriber(LoginRequest) returns (LoginResponse);
-    
-    // Получить профиль пользователя из ScyllaDB (SPR)
-    rpc GetSubscriberProfile(ProfileRequest) returns (ProfileResponse);
-}
-
 // MediaSignalingBridge управляет Control Plane плоскостью WebRTC Mesh комнат
 service MediaSignalingBridge {
     // Инициализировать комнату конференции модератором
@@ -23,117 +12,46 @@ service MediaSignalingBridge {
     // Продлить время жизни сессии или увеличить лимит участников
     rpc UpdateRoomLimits(UpdateLimitsRequest) returns (UpdateLimitsResponse);
     
-    // Принудительный спуск управляющих директив модерации по Gx-аналогу (Mute, Ban, Pause)
+    // Принудительный спуск управляющих директив модерации (Mute, Ban, Pause)
     rpc BroadcastControlFrame(ControlFramePayload) returns (ControlFrameAck);
-
-    // Потоковый gRPC-метод передачи бинарных WebM-кадров от шлюза в spr-storage (Req. 3)
-    rpc StreamMediaChunk(stream MediaChunkRequest) returns (MediaStreamResponse);
 }
 
-// ChatHistoryBridge полностью изолирует асинхронный аналитический слой чата
-service ChatHistoryBridge {
-    // Принять входящее сообщение чата, очистить от XSS и отправить в пакетную очередь
-    rpc IngestChatMessage(ChatMessagePayload) returns (ChatMessageAck);
-    
-    // Наносекундное получение Т9 подсказки из префиксного Trie-дерева за O(K)
-    rpc QueryT9Autocomplete(T9QueryRequest) returns (T9QueryResponse);
-}
-
-// --- СТРУКТУРЫ ДАННЫХ АВТОРИЗАЦИИ (AUTH & SPR SHIELDS) ---
-
-message LoginRequest {
-    string email = 1;
-    string password_raw = 2;
-}
-
-message LoginResponse {
-    bool is_success = 1;
-    string jwt_token = 2; // Строго типизированный токен авторизации личности
-    int64 expires_at = 3;
-}
-
-message ProfileRequest {
-    string user_id = 1;
-}
-
-message ProfileResponse {
-    string user_id = 1;
-    string name = 2;
-    string email = 3;
-    string user_role = 4; // "ORGANIZER" / "EMPLOYEE"
-}
-
-// --- СТРУКТУРЫ ДАННЫХ КОНТРОЛЛЕРА КОМНАТ (ROOM MANAGEMENT) ---
+// --- ЗАПРОСЫ/ОТВЕТЫ ДЛЯ УПРАВЛЕНИЯ КОМНАТАМИ ---
 
 message RoomConfigRequest {
     string room_id = 1;
-    string jwt_token = 2; // Привязываем создание к JWT токену личности
-    int32 max_subscribers = 3;   // Лимит участников (до 100 человек по ТЗ)
-    int64 duration_seconds = 4;  // Исходно заданное время конференции
-    repeated string invite_emails = 5; // Список сотрудников для асинхронной Email рассылки
+    string jwt_token = 2;               // JWT модератора
+    int32 max_subscribers = 3;          // до 100
+    int64 duration_seconds = 4;         // длительность сессии
+    repeated string invite_emails = 5;  // для рассылки инвайтов
 }
 
 message RoomConfigResponse {
     bool is_provisioned = 1;
-    string hmac_access_token = 2; // HMAC-SHA256 CSRF защищенный токен инвайта
-    uint32 status_code = 3;        // 2001 - Success
+    string hmac_access_token = 2;       // HMAC-токен для инвайта
+    uint32 status_code = 3;             // 2001 = успех
 }
 
 message UpdateLimitsRequest {
     string room_id = 1;
     string jwt_token = 2;
-    int64 extend_duration_seconds = 3; // Продление сессии (лимит до 5 часов суммарно)
-    int32 increment_max_peers = 4;     // Увеличение лимита участников до 100 человек
+    int64 extend_duration_seconds = 3;  // продление (макс. 5 часов всего)
+    int32 increment_max_peers = 4;      // увеличение лимита участников
 }
 
 message UpdateLimitsResponse {
     bool is_updated = 1;
-    int64 current_remaining_seconds = 2;
+    int64 current_remaining_seconds = 2; // оставшееся время сессии
 }
 
 message ControlFramePayload {
     string room_id = 1;
-    string jwt_token = 2; // Права модерации валидируются строго через JWT подпись сервера
-    string target_peer_id = 3;   // ID участника-цели (жертвы модерации)
-    string command_type = 4;     // "MUTE_AUDIO", "STOP_VIDEO", "SET_PAUSE", "UNPAUSE", "KICK_PEER"
-    int64 pause_duration_seconds = 5; // Время перерыва, если команда "SET_PAUSE"
+    string jwt_token = 2;               // права модератора
+    string target_peer_id = 3;          // цель команды
+    string command_type = 4;            // MUTE_AUDIO, STOP_VIDEO, SET_PAUSE, UNPAUSE, KICK_PEER
+    int64 pause_duration_seconds = 5;   // для SET_PAUSE
 }
 
 message ControlFrameAck {
     bool is_dispatched = 1;
-}
-
-// --- СТРУКТУРЫ ДАННЫХ ЧАТА И ТЕЛЕМЕТРИИ (CHAT & TELEMETRY) ---
-
-message ChatMessagePayload {
-    string room_id = 1;
-    string sender_id = 2;
-    string message_text = 3; // Сырой текст, проходящий валидацию лимита в 1000 символов
-}
-
-message ChatMessageAck {
-    string message_id = 1;
-    string sanitized_text = 2; // Текст после серверной очистки от XSS и обертки ссылок
-    bool contains_url = 3;     // Флаг для фронтенда для активации Safe Transfer Page
-    google.protobuf.Timestamp timestamp = 4;
-}
-
-message T9QueryRequest {
-    string prefix = 1; // Префикс для прохода по Trie-дереву (например, 'ghb')
-}
-
-message T9QueryResponse {
-    string suggestion = 1; // Подсказка автодополнения (например, 'привет')
-    bool is_found = 2;
-}
-
-// MediaChunkRequest инкапсулирует бинарный кусок видео сессии
-message MediaChunkRequest {
-    string record_id = 1; // Уникальный GUID NVMe-файла записи
-    bytes data = 2;       // Сырые WebM видео-байты из браузера
-}
-
-// MediaStreamResponse подтверждает успешную аллокацию и дозапись фреймов
-message MediaStreamResponse {
-    string status = 1;    // Статус операции (SUCCESS / ERROR)
 }
