@@ -164,7 +164,27 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			continue
 		}
 
+		// Находится внутри HandleWsSignal -> цикл чтения сообщений в moderation_business.go:
 		if incoming.Type == "control_frame" {
+			// ИСПРАВЛЕНО (Глобальный Спикер на бэкенде): Ретранслируем управляющие фреймы модератора на весь зал!
+			// FIXED: Injected master broadcast routines to toggle remote active speaker viewports for all peers
+			if incoming.Command == "SET_SPEAKER" && incoming.TargetPeerID != "" {
+				s.log.Info("👑 [gRPC ORCHESTRATION] Назначен глобальный спикер: %s в комнате %s", incoming.TargetPeerID, roomID)
+				s.broadcastMapToRoom(roomID, map[string]string{
+					"type":           "focus_speaker",
+					"target_peer_id": incoming.TargetPeerID,
+				})
+				continue
+			}
+			if incoming.Command == "RESET_SPEAKER" {
+				s.log.Info("👑 [gRPC ORCHESTRATION] Сброс глобального спикера в комнате %s", roomID)
+				s.broadcastMapToRoom(roomID, map[string]string{
+					"type": "reset_speaker",
+				})
+				continue
+			}
+
+			// Дальше идет твой стандартный, неизмененный блок команд (SET_PAUSE, MUTE_AUDIO и т.д.)
 			if incoming.Command == "SET_PAUSE" {
 				shard.mu.Lock()
 				shard.rooms[roomID].IsPaused = true
