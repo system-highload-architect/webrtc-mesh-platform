@@ -1,16 +1,16 @@
 {{define "conf_video_grid"}}
 <!-- Единый корневой Grid-контейнер платформы -->
-<div id="video-grid" class="video-grid-layout" style="width: 100%; height: 100%; box-sizing: border-box;">
+<div id="video-grid" class="video-grid-layout" style="width: 100%; height: 100%; box-sizing: border-box; position: relative;">
     
-    <!-- Локальное окно Давида: по умолчанию инициализируется как главный Спикер сессии со стартовым фокусом -->
-    <div class="video-wrapper active-speaker-focus" id="local-video-container" style="position: relative; background: #020617; border-radius: 8px; overflow: hidden; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; box-sizing: border-box; border: 1px solid #1e293b;">
+    <!-- ИСПРАВЛЕНО (Коллаборативный Векторный Холст ТЗ Давида): -->
+    <!-- Прозрачный оверлей-холст для лазерных стрелок. Высокий z-index гарантирует перехват жестов мыши -->
+    <!-- FIXED: Superimposed transparent canvas layer to render self-fading vector orchestration elements -->
+    <canvas id="vector-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 45; pointer-events: none; background: transparent;"></canvas>
+
+    <!-- Локальное окно Давида: по умолчанию инициализируется как главный Спикер сессии -->
+    <div class="video-wrapper" id="local-video-container" style="position: relative; background: #020617; border-radius: 8px; overflow: hidden; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; box-sizing: border-box; border: 1px solid #1e293b;">
         
-        {{if .IsModerator}}
-        <!-- Золотая кнопка ручной фиксации фокуса на себе -->
-        <div style="position: absolute; top: 8px; left: 8px; z-index: 50;">
-            <button class="target-speaker-btn" data-peer="David_Moderator" style="background: rgba(15,23,42,0.85); border: 1px solid #ecc94b; color: #ecc94b; padding: 4px 8px; font-size: 10px; border-radius: 4px; cursor: pointer; font-family: monospace; font-weight: bold; transition: all 0.2s;">⭐ Спикер</button>
-        </div>
-        {{end}}
+        <div id="local-speaker-btn-placeholder" style="position: absolute; top: 8px; left: 8px; z-index: 50;"></div>
 
         <video id="local-video" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: contain; transform: scaleX(-1); background: #020617; z-index: 1; opacity: 1; transition: opacity 0.2s;"></video>
         

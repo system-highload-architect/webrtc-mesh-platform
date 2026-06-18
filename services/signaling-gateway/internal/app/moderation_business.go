@@ -198,6 +198,18 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			continue
 		}
 
+		if incoming.Type == "draw_vector" {
+			s.broadcastMapToRoomExcept(roomID, peerID, map[string]any{
+				"type":      "draw_vector_broadcast",
+				"sender_id": peerID,
+				"start_x":   incoming.TargetID,     // Используем свободные строковые поля для координат x1
+				"start_y":   incoming.TargetPeerID, // Координата y1
+				"end_x":     incoming.Text,         // Координата x2
+				"end_y":     incoming.Command,      // Координата y2
+			})
+			continue
+		}
+
 		if incoming.Type == "control_frame" {
 			// Сохраняем и сбрасываем ID Спикера прямо в оперативной памяти VideoRoom структуры бэкенда
 			if incoming.Command == "SET_SPEAKER" && incoming.TargetPeerID != "" {

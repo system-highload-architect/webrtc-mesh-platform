@@ -3,6 +3,7 @@ import { createPeerConnection, removePeerVideo } from './create_peer.js';
 import { handleOffer, handleAnswer, handleCandidate } from './webrtc_signaling.js';
 import { logChat } from '../chat/render_log.js';
 import { toggleUiFreeze } from '../buttons/pause_room.js';
+import { initVectorDrawingEngine, handleRemoteVectorInjected } from './vector_draw.js';
 
 /**
  * initSocketConnection инициализирует туннель сигнализации кластера
@@ -23,6 +24,8 @@ export function initSocketConnection() {
             roleBadge.innerText = SessionState.isModerator ? "👑 ОРГАНИЗАТОР КОНТУРА" : "📡 СОТРУДНИК СЕССИИ";
             roleBadge.style.color = SessionState.isModerator ? "#ecc94b" : "#3b82f6";
         }
+
+        initVectorDrawingEngine();
 
         SessionState.ws.send(JSON.stringify({
             type: "join", room_id: SessionState.roomId, sender_name: SessionState.myPeerId
@@ -281,7 +284,7 @@ export function initSocketConnection() {
                 }
                 break;
 
-                case "toggle_video_lock":
+            case "toggle_video_lock":
                 if (SessionState.isModerator) break; // Защита Ведущего
                 
                 const videoBtnNode = document.getElementById('video-toggle');
@@ -311,6 +314,9 @@ export function initSocketConnection() {
                     videoBtnNode.style.opacity = "0.5";
                     if (localVideoNode) localVideoNode.style.opacity = "0.15";
                 }
+                break;
+            case "draw_vector_broadcast":
+                handleRemoteVectorInjected(msg);
                 break;
         }
     };
