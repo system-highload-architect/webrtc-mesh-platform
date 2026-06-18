@@ -13,13 +13,15 @@ type PeerSession struct {
 }
 
 type VideoRoom struct {
-	RoomID          string                  `json:"room_id"`
-	MaxPeers        int32                   `json:"max_peers"`
-	IsPaused        bool                    `json:"is_paused"`
-	ActiveSpeakerID string                  `json:"active_speaker_id"`
-	Peers           map[string]*PeerSession `json:"peers"`
-	ChatHistory     []map[string]any        `json:"chat_history"`
-	CreatedAt       time.Time               `json:"created_at"`
+	RoomID           string                  `json:"room_id"`
+	MaxPeers         int32                   `json:"max_peers"`
+	IsPaused         bool                    `json:"is_paused"`
+	ActiveSpeakerID  string                  `json:"active_speaker_id"`
+	Peers            map[string]*PeerSession `json:"peers"`
+	ChatHistory      []map[string]any        `json:"chat_history"`
+	CreatedAt        time.Time               `json:"created_at"`
+	RoomStates       map[int]bool            `json:"room_states,omitempty"`
+	CurrentSpeakerID string                  `json:"current_speaker_id,omitempty"`
 }
 
 // WsSession описывает единую b2b структуру обмена фреймами в Full-Mesh сети

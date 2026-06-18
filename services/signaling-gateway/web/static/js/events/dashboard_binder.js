@@ -9,11 +9,6 @@ import { executeRemoteMuteTargeted, executeRemoteKickTargeted } from '../buttons
 import { injectRecordButton } from '../buttons/mod_recorder.js';
 import { hangUp } from '../buttons/hangup.js';
 
-// ИСПРАВЛЕНО (Абсолютные b2b-импорты модулей блоков): Подключаем новые изолированные JS-файлы
-// FIXED: Swapped relative targets to secure absolute path resolution routines in Windows environments
-import { executeGlobalAudioBlock } from '/static/js/buttons/mod_mute_all_audio.js';
-import { executeGlobalVideoBlock } from '/static/js/buttons/mod_mute_all_video.js';
-
 /**
  * bindDashboardEvents привязывает изолированные ESM-обработчики к кнопкам управления UI
  */
@@ -50,6 +45,14 @@ export function bindDashboardEvents() {
     }
 
     if (SessionState.isModerator && videoGrid) {
+        // Динамический инжект локальной кнопки спикера Давида с реальным ID
+        const localPlaceholder = document.getElementById('local-speaker-btn-placeholder');
+        if (localPlaceholder && !document.getElementById('local-moderator-speaker-btn')) {
+            localPlaceholder.innerHTML = `
+                <button id="local-moderator-speaker-btn" class="target-speaker-btn" data-peer="${SessionState.myPeerId}" style="background: rgba(15,23,42,0.85); border: 1px solid #ecc94b; color: #ecc94b; padding: 4px 8px; font-size: 10px; border-radius: 4px; cursor: pointer; font-family: monospace; font-weight: bold; transition: all 0.2s;">⭐ Спикер</button>
+            `;
+        }
+
         videoGrid.onclick = (e) => {
             const muteTarget = e.target.closest('.target-mute-btn');
             const kickTarget = e.target.closest('.target-kick-btn');
@@ -57,17 +60,8 @@ export function bindDashboardEvents() {
             if (kickTarget) { e.stopPropagation(); executeRemoteKickTargeted(kickTarget.getAttribute('data-peer')); }
         };
 
-        // Твоя оригинальная Пауза — сохранена без единого изменения
         const pauseBtn = document.getElementById('pause-btn-action');
         if (pauseBtn) pauseBtn.onclick = togglePauseRoomSignal;
-
-        // ИСПРАВЛЕНО (Бинд кнопок тотального Блока звука и видео Давида):
-        // Привязываем клики к новым инлайновым идентификаторам кнопок из conference.html
-        const muteAllAudioBtn = document.getElementById('mute-all-audio-btn');
-        if (muteAllAudioBtn) muteAllAudioBtn.onclick = executeGlobalAudioBlock;
-
-        const muteAllVideoBtn = document.getElementById('mute-all-video-btn');
-        if (muteAllVideoBtn) muteAllVideoBtn.onclick = executeGlobalVideoBlock;
 
         injectRecordButton();
     }

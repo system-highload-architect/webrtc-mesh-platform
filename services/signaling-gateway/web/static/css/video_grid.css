@@ -1,7 +1,20 @@
+/* ==========================================================================
+   🎮 PURE SYMMETRIC MESH MATRIX (STABLE CORE)
+   ========================================================================== */
+
 .video-grid-layout {
     background-color: var(--bg-shard);
     border: 1px solid var(--border-slate);
     border-radius: 6px;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important;
+    grid-auto-rows: minmax(180px, 1fr) !important;
+    gap: 12px !important;
+    width: 100% !important;
+    height: 100% !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    padding: 12px !important;
 }
 
 .video-wrapper {
@@ -11,12 +24,20 @@
     overflow: hidden;
     border: 1px solid var(--border-slate);
     transition: all 0.2s ease-in-out;
+    aspect-ratio: 16/9 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 100% !important;
 }
 
+#local-video,
 .video-wrapper video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important; /* Видео пишется аккуратно, без зума */
 }
 
 #local-video {
@@ -38,7 +59,7 @@
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* ⏸️ Заморозка Паузы модератора Давида */
+/* ⏸️ Заморозка Паузы модератора Давида — блочит абсолютно всех на экране */
 .video-wrapper.room-frozen {
     filter: brightness(0.2) grayscale(1) blur(4px) !important;
     border-color: var(--red-primary) !important;

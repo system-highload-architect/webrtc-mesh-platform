@@ -13,15 +13,23 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Диспетчер команд Давида: Паттерн распределения режимов по кодам стейта
+var roomCommandRegistry = map[string]struct {
+	StateCode int
+	OnType    string
+	OffType   string
+}{
+	"GLOBAL_MUTE_AUDIO": {StateCode: 1, OnType: "force_mute_audio_lock", OffType: "force_unmute_audio_lock"},
+	"GLOBAL_MUTE_VIDEO": {StateCode: 2, OnType: "force_mute_video_lock", OffType: "force_unmute_video_lock"},
+	"SET_PAUSE":         {StateCode: 0, OnType: "room_paused", OffType: "room_resumed"},
+}
+
 func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.Conn, isModerator bool) {
 	idx := s.getShardIndex(roomID)
 	shard := s.shards[idx]
 
 	shard.mu.Lock()
 
-	// ИСПРАВЛЕНО (Pre-Registration Routing ТЗ): Регистрируем сетевой сокет в мапу соединений в ПЕРВУЮ ОЧЕРЕДЬ!
-	// Теперь широковещательный метод вещания гарантированно увидит дескрипторы сокетов ждущих сотрудников!
-	// FIXED: Mounted socket descriptor to global room connections array early to ensure broadcast visibility
 	pConn := &PeerConnection{PeerID: peerID, WS: ws, IsModerator: isModerator, IsMuted: false}
 	if _, exists := shard.conns[roomID]; !exists {
 		shard.conns[roomID] = make(map[string]*PeerConnection)
@@ -30,16 +38,25 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 
 	if _, exists := shard.rooms[roomID]; !exists {
 		shard.rooms[roomID] = &domain.VideoRoom{
-			RoomID: roomID, MaxPeers: 100, IsPaused: false,
-			Peers: make(map[string]*domain.PeerSession), ChatHistory: make([]map[string]any, 0), CreatedAt: time.Now(),
+			RoomID:      roomID,
+			MaxPeers:    100,
+			IsPaused:    false,
+			Peers:       make(map[string]*domain.PeerSession),
+			ChatHistory: make([]map[string]any, 0),
+			CreatedAt:   time.Now(),
+			RoomStates:  make(map[int]bool),
 		}
 		shard.lruCache.Set(roomID, shard.rooms[roomID])
 	}
 
-	// Обсчитываем наличие модератора
+	room := shard.rooms[roomID]
+	if room.RoomStates == nil {
+		room.RoomStates = make(map[int]bool)
+	}
+
 	roomExists := false
 	hasActiveModerator := false
-	if _, exists := shard.rooms[roomID]; exists {
+	if room != nil {
 		roomExists = true
 		for id := range shard.conns[roomID] {
 			if shard.conns[roomID][id] != nil && shard.conns[roomID][id].IsModerator {
@@ -49,7 +66,6 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 		}
 	}
 
-	// Если заходит рядовой Сотрудник, а Владельца в комнате ЕЕТ — шлем пакет удержания и паркуем рутину
 	if !isModerator && (!roomExists || !hasActiveModerator) {
 		shard.mu.Unlock()
 		_ = ws.WriteJSON(map[string]string{
@@ -57,7 +73,6 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			"text": "Конференция еще не началась. Ожидайте авторизации Владельца комнаты...",
 		})
 
-		// Асинхронно паркуем рутину сотрудника на чтение, освобождая мьютекс
 		for {
 			if _, _, err := ws.ReadMessage(); err != nil {
 				shard.mu.Lock()
@@ -145,6 +160,24 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			_ = ws.WriteJSON(map[string]any{"type": "welcome", "sender_id": peerID, "participants": currentParticipants})
 			_ = ws.WriteJSON(map[string]any{"type": "chat_history_dump", "logs": historyLogs})
 
+			// Капкан Давида для защиты от F5 на хэш-карте кодов состояний комнаты
+			shard.mu.RLock()
+			if room != nil && room.RoomStates != nil {
+				// Если зашедший НЕ создатель и НЕ текущий сохраненный Спикер — накрываем локами
+				if !isModerator && peerID != room.CurrentSpeakerID {
+					if room.RoomStates[1] {
+						_ = ws.WriteJSON(map[string]string{"type": "force_mute_audio_lock"})
+					}
+					if room.RoomStates[2] {
+						_ = ws.WriteJSON(map[string]string{"type": "force_mute_video_lock"})
+					}
+				}
+				if room.RoomStates[0] {
+					_ = ws.WriteJSON(map[string]string{"type": "room_paused"})
+				}
+			}
+			shard.mu.RUnlock()
+
 			s.broadcastMapToRoomExcept(roomID, peerID, map[string]string{
 				"type":        "peer-joined",
 				"sender_id":   peerID,
@@ -156,54 +189,100 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 
 		if incoming.Type == "chat" {
 			shard.mu.Lock()
-			room := shard.rooms[roomID]
-			room.ChatHistory = append(room.ChatHistory, map[string]any{"sender_id": peerID, "text": incoming.Text, "timestamp": time.Now()})
+			if shard.rooms[roomID] != nil {
+				shard.rooms[roomID].ChatHistory = append(shard.rooms[roomID].ChatHistory, map[string]any{"sender_id": peerID, "text": incoming.Text, "timestamp": time.Now()})
+			}
 			shard.mu.Unlock()
 
 			s.broadcastToRoomRaw(roomID, domain.WsSession{Type: "chat_broadcast", SenderID: peerID, Text: incoming.Text})
 			continue
 		}
 
-		// Находится внутри HandleWsSignal -> цикл чтения сообщений в moderation_business.go:
 		if incoming.Type == "control_frame" {
-			// ИСПРАВЛЕНО (Глобальный Спикер на бэкенде): Ретранслируем управляющие фреймы модератора на весь зал!
-			// FIXED: Injected master broadcast routines to toggle remote active speaker viewports for all peers
+			// Сохраняем и сбрасываем ID Спикера прямо в оперативной памяти VideoRoom структуры бэкенда
 			if incoming.Command == "SET_SPEAKER" && incoming.TargetPeerID != "" {
-				s.log.Info("👑 [gRPC ORCHESTRATION] Назначен глобальный спикер: %s в комнате %s", incoming.TargetPeerID, roomID)
-				s.broadcastMapToRoom(roomID, map[string]string{
-					"type":           "focus_speaker",
-					"target_peer_id": incoming.TargetPeerID,
-				})
+				shard.mu.Lock()
+				if shard.rooms[roomID] != nil {
+					shard.rooms[roomID].CurrentSpeakerID = incoming.TargetPeerID
+				}
+				shard.mu.Unlock()
+				s.broadcastMapToRoom(roomID, map[string]string{"type": "focus_speaker", "target_peer_id": incoming.TargetPeerID})
 				continue
 			}
 			if incoming.Command == "RESET_SPEAKER" {
-				s.log.Info("👑 [gRPC ORCHESTRATION] Сброс глобального спикера в комнате %s", roomID)
-				s.broadcastMapToRoom(roomID, map[string]string{
-					"type": "reset_speaker",
-				})
+				shard.mu.Lock()
+				if shard.rooms[roomID] != nil {
+					shard.rooms[roomID].CurrentSpeakerID = ""
+				}
+				shard.mu.Unlock()
+				s.broadcastMapToRoom(roomID, map[string]string{"type": "reset_speaker"})
 				continue
 			}
 
-			// Дальше идет твой стандартный, неизмененный блок команд (SET_PAUSE, MUTE_AUDIO и т.д.)
-			if incoming.Command == "SET_PAUSE" {
+			// Промышленный распределитель лекционных блокировок пассивного зала за O(1) без каскадов if-else
+			if config, exists := roomCommandRegistry[incoming.Command]; exists {
 				shard.mu.Lock()
-				shard.rooms[roomID].IsPaused = true
+				room := shard.rooms[roomID]
+				if room.RoomStates == nil {
+					room.RoomStates = make(map[int]bool)
+				}
+
+				room.RoomStates[config.StateCode] = !room.RoomStates[config.StateCode]
+				isActiveNow := room.RoomStates[config.StateCode]
+
+				if config.StateCode == 0 {
+					room.IsPaused = isActiveNow
+				}
+
+				activeSpeakerID := ""
+				if room != nil {
+					activeSpeakerID = room.CurrentSpeakerID
+				}
 				shard.mu.Unlock()
-				s.broadcastToRoomRaw(roomID, domain.WsSession{Type: "room_paused"})
+
+				broadcastType := config.OffType
+				if isActiveNow {
+					broadcastType = config.OnType
+				}
+
+				s.log.Info("🎯 [DISPATCHER] Режим лекции команды [%s]. Код [%d] ➔ Статус: [%t]", incoming.Command, config.StateCode, isActiveNow)
+
+				shard.mu.RLock()
+				if shard.conns[roomID] != nil {
+					for targetID, peerConn := range shard.conns[roomID] {
+						// ИСПРАВЛЕНО (Иммунитет Организатора и Спикера по флагам):
+						// Блокировка полностью ИГНОРИРУЕТ Создателя (p.IsModerator) и назначенного Спикера (activeSpeakerID)
+						// FIXED: Screened out moderator and active speaker nodes from room wide lock signals
+						if (peerConn != nil && peerConn.IsModerator) || targetID == activeSpeakerID || targetID == "David_Moderator" {
+							continue
+						}
+						if peerConn != nil && peerConn.WS != nil {
+							_ = peerConn.WS.WriteJSON(map[string]string{
+								"type": broadcastType,
+							})
+						}
+					}
+				}
+				shard.mu.RUnlock()
 				continue
-			} else if incoming.Command == "RESUME_CONFERENCE" {
+			}
+
+			if incoming.Command == "RESUME_CONFERENCE" {
 				shard.mu.Lock()
-				shard.rooms[roomID].IsPaused = false
+				if shard.rooms[roomID] != nil {
+					shard.rooms[roomID].RoomStates[0] = false
+					shard.rooms[roomID].IsPaused = false
+				}
 				shard.mu.Unlock()
 				s.broadcastToRoomRaw(roomID, domain.WsSession{Type: "room_resumed"})
 				continue
 			}
 
+			// Точечные директивы мьюта и кика с окон видеоплиток — бьют без иммунитетов!
 			if incoming.Command == "MUTE_AUDIO" && incoming.TargetPeerID != "" {
 				s.sendToPeerRaw(roomID, incoming.TargetPeerID, domain.WsSession{Type: "force_mute"})
 				continue
 			}
-
 			if incoming.Command == "KICK_PEER" && incoming.TargetPeerID != "" {
 				s.sendToPeerRaw(roomID, incoming.TargetPeerID, domain.WsSession{Type: "force_kick"})
 				continue
@@ -212,26 +291,18 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			if incoming.Command == "START_RECORD" {
 				currentActiveRecordID := fmt.Sprintf("rec_%d", time.Now().Unix())
 				s.log.Info("[REC ENGINE] Открытие NVMe-файла записи. ID: %s", currentActiveRecordID)
-
 				dirPath := filepath.Join("data", "video_records")
 				_ = os.MkdirAll(dirPath, 0755)
-
 				filePath := filepath.Join(dirPath, fmt.Sprintf("%s.webm", currentActiveRecordID))
-
 				if activeRecordFile != nil {
 					_ = activeRecordFile.Close()
 				}
-
 				var err error
 				activeRecordFile, err = os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 				if err == nil {
 					_, _ = activeRecordFile.Write([]byte{0x1A, 0x45, 0xDF, 0xA3})
 				}
-
-				_ = ws.WriteJSON(map[string]any{
-					"type": "record_started",
-					"file": currentActiveRecordID,
-				})
+				_ = ws.WriteJSON(map[string]any{"type": "record_started", "file": currentActiveRecordID})
 				continue
 			}
 
@@ -243,53 +314,7 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 				}
 				continue
 			}
-
-			if incoming.Command == "GLOBAL_MUTE_AUDIO" {
-				s.log.Info("🚨 [CONTROL PLANE] Запуск режима лекции: Блокировка звука пассивного зала")
-
-				idx := s.getShardIndex(roomID)
-				shard := s.shards[idx]
-				shard.mu.RLock()
-
-				if shard.conns[roomID] != nil {
-					for targetID, peerConn := range shard.conns[roomID] {
-						// Если пир — это Создатель (Давид) или назначенный Спикер (TargetPeerID с фронта) — пропускаем!
-						if targetID == "David_Moderator" || targetID == incoming.TargetPeerID {
-							continue
-						}
-						if peerConn != nil && peerConn.WS != nil {
-							_ = peerConn.WS.WriteJSON(map[string]string{
-								"type": "force_mute_audio_lock",
-							})
-						}
-					}
-				}
-				shard.mu.RUnlock()
-				continue
-			}
-
-			if incoming.Command == "GLOBAL_MUTE_VIDEO" {
-				s.log.Info("🚨 [CONTROL PLANE] Запуск режима лекции: Блокировка видеокамер пассивного зала")
-
-				idx := s.getShardIndex(roomID)
-				shard := s.shards[idx]
-				shard.mu.RLock()
-
-				if shard.conns[roomID] != nil {
-					for targetID, peerConn := range shard.conns[roomID] {
-						if targetID == "David_Moderator" || targetID == incoming.TargetPeerID {
-							continue
-						}
-						if peerConn != nil && peerConn.WS != nil {
-							_ = peerConn.WS.WriteJSON(map[string]string{
-								"type": "force_mute_video_lock",
-							})
-						}
-					}
-				}
-				shard.mu.RUnlock()
-				continue
-			}
+			continue
 		}
 
 		if incoming.TargetID != "" {
@@ -355,4 +380,12 @@ func (s *SignalingService) sendToPeerRaw(roomID, peerID string, msg domain.WsSes
 	if p, exists := shard.conns[roomID][peerID]; exists && p != nil && p.WS != nil {
 		_ = p.WS.WriteJSON(msg)
 	}
+}
+
+func (s *SignalingService) getShardIndex(roomID string) uint32 {
+	var hash uint32 = 5381
+	for i := 0; i < len(roomID); i++ {
+		hash = ((hash << 5) + hash) + uint32(roomID[i])
+	}
+	return hash % 16
 }

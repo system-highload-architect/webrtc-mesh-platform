@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"hash/fnv"
 	"os"
 	"regexp"
 	"sync"
@@ -75,12 +74,6 @@ func NewSignalingService(log *logger.AppLogger) *SignalingService {
 	s.t9Engine.Insert("логирование")
 
 	return s
-}
-
-func (s *SignalingService) getShardIndex(roomID string) uint32 {
-	h := fnv.New32a()
-	_, _ = h.Write([]byte(roomID))
-	return h.Sum32() % s.shardCount
 }
 
 // IsRoomOverloadedOrPaused возвращает статус заморозки или перегрузки комнаты (Req. 3)
