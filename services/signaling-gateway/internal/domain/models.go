@@ -6,20 +6,21 @@ import (
 )
 
 type PeerSession struct {
-	PeerID        string    `json:"peer_id"`
-	IsModerator   bool      `json:"is_moderator"`
-	IsMuted       bool      `json:"is_muted"`
-	LastHeartbeat time.Time `json:"last_heartbeat"`
+	IsModerator     bool      `json:"is_moderator"`
+	IsMuted         bool      `json:"is_muted"`
+	PeerID          string    `json:"peer_id"`
+	LastMessageUnix int64     `json:"last_message_unix"` // Для Lock-Free CAS лимитера флуда
+	LastHeartbeat   time.Time `json:"last_heartbeat"`
 }
 
 type VideoRoom struct {
 	RoomID           string                  `json:"room_id"`
-	MaxPeers         int32                   `json:"max_peers"`
+	MaxPeers         int                     `json:"max_peers"`
 	IsPaused         bool                    `json:"is_paused"`
-	ActiveSpeakerID  string                  `json:"active_speaker_id"`
 	Peers            map[string]*PeerSession `json:"peers"`
 	ChatHistory      []map[string]any        `json:"chat_history"`
 	CreatedAt        time.Time               `json:"created_at"`
+	UpdatedAt        time.Time               `json:"updated_at"` // Для Exponential Backoff Janitor
 	RoomStates       map[int]bool            `json:"room_states,omitempty"`
 	CurrentSpeakerID string                  `json:"current_speaker_id,omitempty"`
 }

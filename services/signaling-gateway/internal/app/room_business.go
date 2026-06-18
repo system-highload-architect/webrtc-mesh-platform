@@ -21,7 +21,7 @@ func (s *SignalingService) CreateRoom(ctx context.Context, roomID string, maxPee
 
 	room := &domain.VideoRoom{
 		RoomID:    roomID,
-		MaxPeers:  maxPeers,
+		MaxPeers:  int(maxPeers),
 		IsPaused:  false,
 		Peers:     make(map[string]*domain.PeerSession),
 		CreatedAt: time.Now(),
