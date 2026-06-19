@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -44,23 +43,6 @@ func (h *HttpHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.service.HandleWsSignal(roomID, peerID, conn, isMod)
-}
-
-// HandleT9Autocomplete для обратной совместимости, если прокси стучится на шлюз сигнализации
-func (h *HttpHandler) HandleT9Autocomplete(w http.ResponseWriter, r *http.Request) {
-	prefix := r.URL.Query().Get("prefix")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	if svc, ok := h.service.(*app.SignalingService); ok {
-		// Извлекаем подсказку через совместимый метод
-		suggestion, found := svc.QueryT9Autocomplete(context.Background(), prefix)
-		if found {
-			_, _ = w.Write([]byte(suggestion))
-			return
-		}
-	}
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(""))
 }
 
 // HandleChatSend v1 Эндпоинт санитизации чата, XSS-защиты и пакетного логирования

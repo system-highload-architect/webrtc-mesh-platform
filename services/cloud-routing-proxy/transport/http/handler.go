@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"io"
@@ -10,22 +11,34 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"webrtc-mesh-platform/internal/pkg/logger"
+	"webrtc-mesh-platform/pb/gen" // Подключаем твои оригинальные сгенерированные gRPC-контракты чата
 	"webrtc-mesh-platform/services/cloud-routing-proxy/internal/app"
 )
 
 type HttpHandler struct {
-	balancer  app.BalancerEngine
-	log       *logger.AppLogger
-	staticDir string
+	balancer          app.BalancerEngine
+	log               *logger.AppLogger
+	grpcChatClient    gen.ChatHistoryBridgeClient
+	grpcStorageClient gen.StorageMediaBridgeClient // ИСПРАВЛЕНО: Инжектируем бинарный gRPC-клиент хранилища
+	staticDir         string
 }
 
-func NewHttpHandler(balancer app.BalancerEngine, log *logger.AppLogger, staticDir string) *HttpHandler {
+func NewHttpHandler(
+	balancer app.BalancerEngine,
+	log *logger.AppLogger,
+	chatClient gen.ChatHistoryBridgeClient,
+	storageClient gen.StorageMediaBridgeClient, // Передаем клиент в конструктор
+	staticDir string,
+) *HttpHandler {
 	return &HttpHandler{
-		balancer:  balancer,
-		log:       log,
-		staticDir: staticDir,
+		balancer:          balancer,
+		log:               log,
+		grpcChatClient:    chatClient,
+		grpcStorageClient: storageClient,
+		staticDir:         staticDir,
 	}
 }
 
@@ -33,7 +46,7 @@ func NewHttpHandler(balancer app.BalancerEngine, log *logger.AppLogger, staticDi
 func (h *HttpHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/ws", h.HandleWebSocketProxy)
 	mux.HandleFunc("/api/v1/records/upload", h.HandleUploadRecord)
-	mux.HandleFunc("/api/v1/records/download", h.HandleDownloadRecord)
+	mux.HandleFunc("/api/v1/records/download", h.HandleRecordsDownload)
 	mux.HandleFunc("/safe-transfer", h.HandleSafeTransfer)
 
 	defaultSignalingURL, _ := url.Parse("http://localhost:8081")
@@ -44,16 +57,43 @@ func (h *HttpHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/ice-config", func(w http.ResponseWriter, r *http.Request) { signalingProxy.ServeHTTP(w, r) })
 	mux.HandleFunc("/api/v1/redirect", func(w http.ResponseWriter, r *http.Request) { signalingProxy.ServeHTTP(w, r) })
 
-	chatServiceURL, _ := url.Parse("http://localhost:8082")
-	chatProxy := httputil.NewSingleHostReverseProxy(chatServiceURL)
-	mux.HandleFunc("/api/v1/t9", func(w http.ResponseWriter, r *http.Request) { chatProxy.ServeHTTP(w, r) })
+	mux.HandleFunc("/api/v1/t9", h.HandleT9Autocomplete)
 
-	// ИСПРАВЛЕНО: Защита Favicon от паники 500
+	// Защита Favicon от паники 500
 	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
 
 	fileServer := http.FileServer(http.Dir(filepath.Join(h.staticDir, "static")))
 	mux.Handle("/static/", http.StripPrefix("/static/", fileServer))
 	mux.HandleFunc("/", h.HandleRenderPage)
+}
+
+// HandleT9Autocomplete — НАШ АДАПТЕР: Принимает HTTP от браузера, конвертирует в бинарный T9QueryRequest
+// и отправляет по внутреннему gRPC-каналу в chat-history-service на порт :8083
+// FIXED: Transformed raw HTTP request contexts to compile with generated QueryT9Autocomplete gRPC specs
+func (h *HttpHandler) HandleT9Autocomplete(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+	prefix := r.URL.Query().Get("prefix")
+	if prefix == "" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// Жесткий enterprise SLA таймаут наносекундной предикции в 300мс
+	ctx, cancel := context.WithTimeout(r.Context(), 300*time.Millisecond)
+	defer cancel()
+
+	// Нативно вызываем твой ОРИГИНАЛЬНЫЙ gRPC-метод по Protobuf контракту
+	grpcResponse, err := h.grpcChatClient.QueryT9Autocomplete(ctx, &gen.T9QueryRequest{Prefix: prefix})
+	if err != nil || !grpcResponse.IsFound {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(""))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(grpcResponse.Suggestion))
 }
 
 func (h *HttpHandler) HandleWebSocketProxy(w http.ResponseWriter, r *http.Request) {
@@ -94,43 +134,101 @@ func (h *HttpHandler) HandleSafeTransfer(w http.ResponseWriter, r *http.Request)
 
 func (h *HttpHandler) HandleUploadRecord(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	recordID := r.URL.Query().Get("id")
-	dirPath := filepath.Join("data", "video_records")
-	_ = os.MkdirAll(dirPath, 0755)
-	filePath := filepath.Join(dirPath, fmt.Sprintf("%s.webm", recordID))
-	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	defer file.Close()
-	_, _ = io.Copy(file, r.Body)
+
+	recordID := r.URL.Query().Get("id")
+	if recordID == "" || recordID == "undefined" {
+		http.Error(w, "Bad Request: Missing ID", http.StatusBadRequest)
+		return
+	}
+
+	// Выставляем b2b AppSec лимит на загрузку тяжелых монолитов WebM (500 МБ)
+	r.Body = http.MaxBytesReader(w, r.Body, 500*1024*1024)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
+
+	// Нативно открываем бинарный gRPC-стрим к микросервису spr-storage по контракту storage.proto
+	grpcStream, err := h.grpcStorageClient.StreamMediaChunk(ctx)
+	if err != nil {
+		h.log.Error("Не удалось инициализировать gRPC-стрим к spr-storage: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// Выделяем b2b-буфер в 64 Килобайта для нарезки потока на gRPC-кадры (Chunking)
+	buffer := make([]byte, 64*1024)
+	for {
+		bytesRead, readErr := r.Body.Read(buffer)
+		if bytesRead > 0 {
+			// Упаковываем сырые байты в строго типизированную Protobuf-структуру MediaChunkRequest
+			sendErr := grpcStream.Send(&gen.MediaChunkRequest{
+				RecordId: recordID,
+				Data:     buffer[:bytesRead],
+			})
+			if sendErr != nil {
+				h.log.Error("Крах передачи кадра по gRPC-стриму: %v", sendErr)
+				http.Error(w, "Storage Streaming Failed", http.StatusInternalServerError)
+				return
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			http.Error(w, "HTTP Read Error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Запечатываем gRPC-стрим и забираем финальный бинарный статус ответа от базы ScyllaDB/SPR
+	grpcResponse, err := grpcStream.CloseAndRecv()
+	if err != nil {
+		h.log.Error("[API GATEWAY] База данных SPR отклонила закрытие видео-стрима: %v", err)
+		http.Error(w, "Database Persist Error", http.StatusInternalServerError)
+		return
+	}
+
+	h.log.Info("🎯 [API GATEWAY] Финальный статус укладки WebM на NVMe диски SPR: [%s]", grpcResponse.Status)
 	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("UPLOAD_SUCCESS"))
 }
 
-func (h *HttpHandler) HandleDownloadRecord(w http.ResponseWriter, r *http.Request) {
+func (h *HttpHandler) HandleRecordsDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	recordID := r.URL.Query().Get("id")
-	filePath := filepath.Join("data", "video_records", fmt.Sprintf("%s.webm", recordID))
+	if recordID == "" || recordID == "undefined" {
+		http.Error(w, "🔒 [AppSec Proxy Guard]: ID записи пуст.", http.StatusBadRequest)
+		return
+	}
+
+	// Вычисляем путь к файлу внутри изолированной папки spr-storage
+	filePath := filepath.Join("data", "scylladb_spr_emulation", "records", fmt.Sprintf("%s.webm", recordID))
 	file, err := os.Open(filePath)
 	if err != nil {
-		http.Error(w, "Not Found", http.StatusNotFound)
+		http.Error(w, "🔒 [AppSec Proxy Guard]: Файл записи не найден в ScyllaDB/SPR keyspace.", http.StatusNotFound)
 		return
 	}
 	defer file.Close()
-	fileInfo, _ := file.Stat()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "video/webm")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=conference_record_%s.webm", recordID))
 	w.Header().Set("Accept-Ranges", "bytes")
+
+	// Разблокируем побайтовую Range-Streaming перемотку видео
 	http.ServeContent(w, r, fileInfo.Name(), fileInfo.ModTime(), file)
 }
 
-// HandleRenderPage осуществляет каскадный поиск HTML-шаблонов
-// ИСПРАВЛЕНО (Защита от 500 ошибок рендеринга): Сканируем папки web во всех возможных директориях запуска
-// FIXED: Reengineered template parsing loop to locate static folders across project scopes safely
 func (h *HttpHandler) HandleRenderPage(w http.ResponseWriter, r *http.Request) {
-	if strings.HasPrefix(r.URL.Path, "/static/") {
-		return
-	}
 	tokenStr := r.URL.Query().Get("token")
 	isModerator := strings.Contains(tokenStr, "organizer")
 
@@ -141,7 +239,6 @@ func (h *HttpHandler) HandleRenderPage(w http.ResponseWriter, r *http.Request) {
 		pageFile = "conference.html"
 	}
 
-	// Алгоритм каскадного поиска папки web на диске Windows
 	searchPaths := []string{
 		h.staticDir,
 		"web",

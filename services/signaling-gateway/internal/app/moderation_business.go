@@ -24,39 +24,6 @@ var roomCommandRegistry = map[string]struct {
 	"SET_PAUSE":         {StateCode: 0, OnType: "room_paused", OffType: "room_resumed"},
 }
 
-// Запускаем фоновый демон очистки RAM-памяти в конструкторе твоего сервиса
-func (s *SignalingService) StartJanitorRoutine() {
-	go func() {
-		// Экспоненциальный бэкофф/таймер проверки: сканируем контур раз в 5 минут
-		ticker := time.NewTicker(5 * time.Minute)
-		for range ticker.C {
-			s.log.Info("🧹 [EXPONENTIAL JANITOR] Запуск фонового демона очистки неактивных комнат...")
-			now := time.Now()
-
-			for i := 0; i < 16; i++ {
-				shard := s.shards[i]
-				shard.mu.Lock()
-				for roomID, room := range shard.rooms {
-					// Если в комнате никого нет и она не обновлялась более 30 минут — вычищаем её
-					if len(shard.conns[roomID]) == 0 && now.Sub(room.UpdatedAt) > 30*time.Minute {
-						s.log.Info("🚨 [JANITOR CLEANUP] Комната %s неактивна 30 мин. Вещание STIMULUS_ALERT и выжигание ОЗУ.", roomID)
-
-						// Оповещаем сокет-шину (если кто-то остался в дескрипторах сопряжения)
-						s.broadcastMapToRoom(roomID, map[string]string{
-							"type": "STIMULUS_ALERT",
-							"text": "Сессия принудительно терминирована фоновым Reactive Janitor за неактивность.",
-						})
-
-						delete(shard.rooms, roomID)
-						delete(shard.conns, roomID)
-					}
-				}
-				shard.mu.Unlock()
-			}
-		}
-	}()
-}
-
 func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.Conn, isModerator bool) {
 	idx := s.getShardIndex(roomID)
 	shard := s.shards[idx]
@@ -69,31 +36,31 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 	}
 	shard.conns[roomID][peerID] = pConn
 
-	if _, exists := shard.rooms[roomID]; !exists {
-		shard.rooms[roomID] = &domain.VideoRoom{
+	// Читаем и создаем инстанс комнаты через lruCache
+	roomObj, roomExists := shard.lruCache.Get(roomID)
+	var room *domain.VideoRoom
+
+	if !roomExists {
+		room = &domain.VideoRoom{
 			RoomID:      roomID,
 			MaxPeers:    100,
 			IsPaused:    false,
 			Peers:       make(map[string]*domain.PeerSession),
 			ChatHistory: make([]map[string]any, 0),
 			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
 			RoomStates:  make(map[int]bool),
 		}
-		shard.lruCache.Set(roomID, shard.rooms[roomID])
+		shard.lruCache.Set(roomID, room)
+	} else {
+		room, _ = roomObj.(*domain.VideoRoom)
 	}
-
-	room := shard.rooms[roomID]
-	room.UpdatedAt = time.Now() // Сбрасываем таймер для Janitor при активности
 
 	if room.RoomStates == nil {
 		room.RoomStates = make(map[int]bool)
 	}
 
-	roomExists := false
 	hasActiveModerator := false
 	if room != nil {
-		roomExists = true
 		for id := range shard.conns[roomID] {
 			if shard.conns[roomID][id] != nil && shard.conns[roomID][id].IsModerator {
 				hasActiveModerator = true
@@ -129,9 +96,10 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 		}
 		shard.mu.Lock()
 		delete(shard.conns[roomID], peerID)
-		if room, exists := shard.rooms[roomID]; exists {
-			delete(room.Peers, peerID)
-			room.UpdatedAt = time.Now()
+
+		if currentRoomObj, exists := shard.lruCache.Get(roomID); exists {
+			currentRoom, _ := currentRoomObj.(*domain.VideoRoom)
+			delete(currentRoom.Peers, peerID)
 		}
 		shard.mu.Unlock()
 		_ = ws.Close()
@@ -164,13 +132,6 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			continue
 		}
 
-		// Логируем активность для Janitor
-		shard.mu.Lock()
-		if shard.rooms[roomID] != nil {
-			shard.rooms[roomID].UpdatedAt = time.Now()
-		}
-		shard.mu.Unlock()
-
 		if incoming.Type == "record_chunk" {
 			if activeRecordFile != nil && incoming.MediaBase64 != "" {
 				decodedBytes, err := base64.StdEncoding.DecodeString(incoming.MediaBase64)
@@ -183,10 +144,16 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 
 		if incoming.Type == "join" {
 			shard.mu.Lock()
-			room := shard.rooms[roomID]
-			room.Peers[peerID] = &domain.PeerSession{
-				PeerID: peerID, IsModerator: isModerator, IsMuted: false,
-				LastHeartbeat: time.Now(), LastMessageUnix: time.Now().UnixNano(),
+
+			if currentRoomObj, exists := shard.lruCache.Get(roomID); exists {
+				room, _ = currentRoomObj.(*domain.VideoRoom)
+				room.Peers[peerID] = &domain.PeerSession{
+					PeerID:          peerID,
+					IsModerator:     isModerator,
+					IsMuted:         false,
+					LastHeartbeat:   time.Now(),
+					LastMessageUnix: time.Now().UnixNano(),
+				}
 			}
 
 			var currentParticipants []map[string]string
@@ -234,17 +201,15 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 
 		if incoming.Type == "chat" {
 			shard.mu.Lock()
-			room := shard.rooms[roomID]
 			var peerSession *domain.PeerSession
-			if room != nil && room.Peers[peerID] != nil {
-				peerSession = room.Peers[peerID]
+			if currentRoomObj, exists := shard.lruCache.Get(roomID); exists {
+				room, _ = currentRoomObj.(*domain.VideoRoom)
+				if room.Peers[peerID] != nil {
+					peerSession = room.Peers[peerID]
+				}
 			}
 			shard.mu.Unlock()
 
-			// ИСПРАВЛЕНО (Lock-Free CAS Лимитер Флуда за 9нс ТЗ Давида):
-			// Атомарно сравниваем время последнего фрейма без блокировок мьютекса!
-			// Если дельта меньше 300 миллисекунд (300 000 000 нс) — рубим спам на уровне CPU!
-			// FIXED: Deployed high-performance lock-free atomic CompareAndSwap rate limiter to secure chat plane
 			if peerSession != nil {
 				nowUnixNano := time.Now().UnixNano()
 				lastMsgNano := atomic.LoadInt64(&peerSession.LastMessageUnix)
@@ -257,13 +222,13 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 					})
 					continue
 				}
-				// Атомарно записываем метку времени нового сообщения
 				atomic.StoreInt64(&peerSession.LastMessageUnix, nowUnixNano)
 			}
 
 			shard.mu.Lock()
-			if shard.rooms[roomID] != nil {
-				shard.rooms[roomID].ChatHistory = append(shard.rooms[roomID].ChatHistory, map[string]any{"sender_id": peerID, "text": incoming.Text, "timestamp": time.Now()})
+			if currentRoomObj, exists := shard.lruCache.Get(roomID); exists {
+				room, _ = currentRoomObj.(*domain.VideoRoom)
+				room.ChatHistory = append(room.ChatHistory, map[string]any{"sender_id": peerID, "text": incoming.Text, "timestamp": time.Now()})
 			}
 			shard.mu.Unlock()
 
@@ -274,8 +239,10 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 		if incoming.Type == "control_frame" {
 			if incoming.Command == "SET_SPEAKER" && incoming.TargetPeerID != "" {
 				shard.mu.Lock()
-				if shard.rooms[roomID] != nil {
-					shard.rooms[roomID].CurrentSpeakerID = incoming.TargetPeerID
+				if currentRoomObj, exists := shard.lruCache.Get(roomID); exists {
+					cro, _ := currentRoomObj.(*domain.VideoRoom)
+					cro.CurrentSpeakerID = incoming.TargetPeerID
+					currentRoomObj = cro
 				}
 				shard.mu.Unlock()
 				s.broadcastMapToRoom(roomID, map[string]string{"type": "focus_speaker", "target_peer_id": incoming.TargetPeerID})
@@ -283,37 +250,38 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 			}
 			if incoming.Command == "RESET_SPEAKER" {
 				shard.mu.Lock()
-				if shard.rooms[roomID] != nil {
-					shard.rooms[roomID].CurrentSpeakerID = ""
+				if currentRoomObj, exists := shard.lruCache.Get(roomID); exists {
+					cro, _ := currentRoomObj.(*domain.VideoRoom)
+					cro.CurrentSpeakerID = ""
+					currentRoomObj = cro
 				}
 				shard.mu.Unlock()
 				s.broadcastMapToRoom(roomID, map[string]string{"type": "reset_speaker"})
 				continue
 			}
 
-			if config, exists := roomCommandRegistry[incoming.Command]; exists {
+			if configCmd, exists := roomCommandRegistry[incoming.Command]; exists {
 				shard.mu.Lock()
-				room := shard.rooms[roomID]
+				if currentRoomObj, exists := shard.lruCache.Get(roomID); exists {
+					room = currentRoomObj.(*domain.VideoRoom)
+				}
 				if room.RoomStates == nil {
 					room.RoomStates = make(map[int]bool)
 				}
-				room.RoomStates[config.StateCode] = !room.RoomStates[config.StateCode]
-				isActiveNow := room.RoomStates[config.StateCode]
-				if config.StateCode == 0 {
+				room.RoomStates[configCmd.StateCode] = !room.RoomStates[configCmd.StateCode]
+				isActiveNow := room.RoomStates[configCmd.StateCode]
+				if configCmd.StateCode == 0 {
 					room.IsPaused = isActiveNow
 				}
-				activeSpeakerID := ""
-				if room != nil {
-					activeSpeakerID = room.CurrentSpeakerID
-				}
+				activeSpeakerID := room.CurrentSpeakerID
 				shard.mu.Unlock()
 
-				broadcastType := config.OffType
+				broadcastType := configCmd.OffType
 				if isActiveNow {
-					broadcastType = config.OnType
+					broadcastType = configCmd.OnType
 				}
 
-				s.log.Info("🎯 [DISPATCHER] Режим лекции команды [%s]. Код [%d] ➔ Статус: [%t]", incoming.Command, config.StateCode, isActiveNow)
+				s.log.Info("🎯 [DISPATCHER] Режим лекции команды [%s]. Код [%d] ➔ Status: [%t]", incoming.Command, configCmd.StateCode, isActiveNow)
 
 				shard.mu.RLock()
 				if shard.conns[roomID] != nil {
@@ -332,9 +300,10 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 
 			if incoming.Command == "RESUME_CONFERENCE" {
 				shard.mu.Lock()
-				if shard.rooms[roomID] != nil {
-					shard.rooms[roomID].RoomStates[0] = false
-					shard.rooms[roomID].IsPaused = false
+				if currentRoomObj, exists := shard.lruCache.Get(roomID); exists {
+					room, _ = currentRoomObj.(*domain.VideoRoom)
+					room.RoomStates[0] = false
+					room.IsPaused = false
 				}
 				shard.mu.Unlock()
 				s.broadcastToRoomRaw(roomID, domain.WsSession{Type: "room_resumed"})
@@ -449,5 +418,5 @@ func (s *SignalingService) getShardIndex(roomID string) uint32 {
 	for i := 0; i < len(roomID); i++ {
 		hash = ((hash << 5) + hash) + uint32(roomID[i])
 	}
-	return hash % 16
+	return hash % s.shardCount
 }
