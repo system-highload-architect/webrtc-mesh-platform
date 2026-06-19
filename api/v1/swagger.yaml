@@ -1,0 +1,92 @@
+openapi: 3.0.3
+info:
+  title: Платформа Clearway PKI WebRTC Mesh — API Контур Входа
+  description: Высокопроизводительный распределенный L7 API Gateway (Consistent Hash Ring) плоскостей Control & User Plane.
+  version: 1.38.0
+servers:
+  - url: http://localhost:8080/api/v1
+paths:
+  /ws:
+    get:
+      summary: Полнодуплексный Control Plane WebSocket туннель сигнализации комнат
+      description: Инициализирует Full-Mesh сопряжение WebRTC. Нативно парсит лимиты PCEF и ставит сессию на радар Битового Колеса Времени.
+      parameters:
+        - name: room
+          in: query
+          required: true
+          description: Уникальный ID зашифрованного RAM-шарда комнаты
+          schema:
+            type: string
+        - name: peer
+          in: query
+          required: true
+          description: Уникальный идентификатор участника (ноды)
+          schema:
+            type: string
+        - name: mod
+          in: query
+          required: false
+          description: Признак Владельца комнаты (Модератора Давида)
+          schema:
+            type: boolean
+        - name: max_peers
+          in: query
+          required: false
+          description: Жесткий лимит вместимости зала (1-100 человек)
+          schema:
+            type: integer
+        - name: duration
+          in: query
+          required: false
+          description: Динамический TTL сессии (минут, макс 300 / 5 часов)
+          schema:
+            type: integer
+      responses:
+        "101":
+          description: Успешный апгрейд HTTP протокола в WebSocket сопряжение.
+
+  /records/upload:
+    post:
+      summary: Стриминг WebM-видеозаписи встречи в хранилище SPR
+      description: Перехватывает HTTP POST от фронтенда и побайтово перекачивает данные по gRPC Client Streaming мосту на порт :50060 без аллокаций в прокси.
+      parameters:
+        - name: id
+          in: query
+          required: true
+          description: ID записи для сохранения на NVMe
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          video/webm:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Видеофайл успешно запечатан на дисковом массиве ScyllaDB/SPR.
+        "500":
+          description: Крах потокового gRPC-канала записи кадров.
+
+  /records/download:
+    get:
+      summary: Скачивание монолитных WebM-записей
+      description: Транслирует медиа-файлы напрямую из NoSQL персистентного каталога с поддержкой побайтовой Range-Streaming перемотки видео.
+      parameters:
+        - name: id
+          in: query
+          required: true
+          description: ID записи
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Стрим видеофайла WebM.
+          content:
+            video/webm:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Файл записи не найден в ScyllaDB/SPR keyspace.

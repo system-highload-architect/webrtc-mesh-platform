@@ -1,0 +1,85 @@
+services:
+  # 1. Edge Эшелон: L7 Балансировщик и Центральный API Gateway
+  cloud-routing-proxy:
+    build:
+      context: .
+      dockerfile: services/cloud-routing-proxy/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVICE_NAME=cloud-routing-proxy
+      - LOG_LEVEL=INFO
+    depends_on:
+      - signaling-gateway
+      - spr-storage
+      - chat-history-service
+      - auth-service
+    # ИСПРАВЛЕНО (Shared Volume Bridge): Подключаем общий том хранилища к прокси!
+    # Теперь API Gateway может мгновенно читать и отдавать WebM-монолиты клиентам.
+    # FIXED: Mounted the centralized storage volume to allow direct binary webm file streaming
+    volumes:
+      - spr-nosql-data:/app/data/scylladb_spr_emulation
+    networks:
+      - clearway-mesh-network
+
+  # 2. Control Plane: Шлюз Сигнализации WebRTC Full-Mesh & Лекционные блокировки
+  signaling-gateway:
+    build:
+      context: .
+      dockerfile: services/signaling-gateway/Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - SERVICE_NAME=signaling-gateway
+      - LOG_LEVEL=INFO
+    networks:
+      - clearway-mesh-network
+
+  # 3. Data Plane: gRPC-рекордер NVMe и Хранилище профилей (Эмулятор ScyllaDB)
+  spr-storage:
+    build:
+      context: .
+      dockerfile: services/spr-storage/Dockerfile
+    ports:
+      - "50060:50060"
+    environment:
+      - SERVICE_NAME=spr-storage
+      - LOG_LEVEL=INFO
+    volumes:
+      - spr-nosql-data:/app/data/scylladb_spr_emulation
+    networks:
+      - clearway-mesh-network
+
+  # 4. Chat Plane: gRPC-хранилище истории сообщений и изолированный предикативный Т9
+  chat-history-service:
+    build:
+      context: .
+      dockerfile: services/chat-history-service/Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      - SERVICE_NAME=chat-history-service
+      - LOG_LEVEL=INFO
+    networks:
+      - clearway-mesh-network
+
+  # 5. Security Plane: gRPC-служба криптографической верификации PKI-токенов и JWT-ролей
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - SERVICE_NAME=auth-service
+      - LOG_LEVEL=INFO
+    networks:
+      - clearway-mesh-network
+
+volumes:
+  spr-nosql-data:
+    driver: local
+
+networks:
+  clearway-mesh-network:
+    driver: bridge

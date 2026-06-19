@@ -1,6 +1,6 @@
-service_name: "webrtc-cloud-routing-proxy"
-log_level: "info"
-bind_addr: ":8080"                  # Главный входной порт кластера для браузеров (API Gateway)
+service_name: "cloud-routing-proxy"
+log_level: "INFO"
 shutdown_timeout: 5
-signaling_nodes:                    # Список нод сигнализации для Consistent Hashing
-  - "localhost:8081"
+signaling_backend_url: "http://signaling-gateway:8081"
+chat_history_grpc_addr: "chat-history-service:8083"
+spr_storage_grpc_addr: "spr-storage:50060"
