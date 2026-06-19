@@ -12,8 +12,6 @@ export async function handleOffer(msg) {
     if (!pc) return;
 
     try {
-        // ИСПРАВЛЕНО: Читаем структуру контракта напрямую из объекта payload, как на твоем сайте
-        // FIXED: Safely unmarshaled remote SDP session description context from the inbound payload wrapper
         if (!msg.payload) {
             console.error("[WebRTC Signaling] Критическая ошибка: Payload пуст.");
             return;

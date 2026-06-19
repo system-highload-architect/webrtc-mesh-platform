@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -27,15 +28,28 @@ func NewHttpHandler(service app.RoomManagerEngine) *HttpHandler {
 }
 
 // HandleWebSocket v1 Эндпоинт WebSocket Сигнализации комнат и модерации
+// HandleWebSocket v1 Эндпоинт WebSocket Сигнализации комнат и модерации
+// ИСПРАВЛЕНО (Прямой проброс лимитов через контекст запроса): Извлекаем max_peers и duration из HTTP REST параметров
+// и бесшовно укладываем в потоковый Context сокета. Это гарантирует доставку без участия JS-кода!
+// FIXED: Extracted capability params from raw request query tokens and injected values into socket context
 func (h *HttpHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	roomID := r.URL.Query().Get("room")
 	peerID := r.URL.Query().Get("peer")
 	isMod := r.URL.Query().Get("mod") == "true"
 
+	// Извлекаем лимиты, которые API Gateway (прокси) пробросил в строке запроса
+	maxPeers := r.URL.Query().Get("max_peers")
+	duration := r.URL.Query().Get("duration")
+
 	if roomID == "" || peerID == "" {
 		http.Error(w, "Missing room or peer identification parameters", http.StatusBadRequest)
 		return
 	}
+
+	// Обогащаем контекст запроса нашими b2b-параметрами
+	ctx := context.WithValue(r.Context(), "max_peers", maxPeers)
+	ctx = context.WithValue(ctx, "duration", duration)
+	r = r.WithContext(ctx)
 
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {

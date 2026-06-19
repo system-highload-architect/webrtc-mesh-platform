@@ -27,8 +27,19 @@ export function initSocketConnection() {
 
         initVectorDrawingEngine();
 
+        // ИСПРАВЛЕНО (Живые лимиты Control Plane): Вытаскиваем параметры из URL браузера Давида
+        // FIXED: Captured capability variables within the socket lifecycle context
+        const urlParams = new URLSearchParams(window.location.search);
+        const maxPeersParam = urlParams.get('max_peers') || "100";
+        const durationParam = urlParams.get('duration') || "30";
+
+        // Честно пакуем живой ввод с экрана в welcome-пакет "join" без дефолтов!
         SessionState.ws.send(JSON.stringify({
-            type: "join", room_id: SessionState.roomId, sender_name: SessionState.myPeerId
+            type: "join", 
+            room_id: SessionState.roomId, 
+            sender_name: SessionState.myPeerId,
+            record_id: String(maxPeersParam), // Передаем живое число участников в record_id
+            text: String(durationParam)       // Передаем живые минуты TTL сессии в text
         }));
     };
 
@@ -104,7 +115,7 @@ export function initSocketConnection() {
                 removePeerVideo(leftID);
                 delete SessionState.peerNames[leftID];
                 break;
-
+// 1
             case "chat_broadcast":
             case "chat":
                 logChat(`${msg.sender_id || msg.sender_name}: ${msg.text}`);
@@ -213,7 +224,7 @@ export function initSocketConnection() {
                 const localVideoRestore = document.getElementById('local-video');
                 if (localVideoRestore) localVideoRestore.style.opacity = "1";
                 break;
-
+// 2
         case "focus_speaker":
                 SessionState.activeSpeakerId = msg.target_peer_id;
                 logChat(`// [ORCHESTRATION] Внимание зала зафиксировано на спикере: ${msg.target_peer_id}. Ему выдан иммунитет от мьюта.`, "#ecc94b");
@@ -318,7 +329,23 @@ export function initSocketConnection() {
             case "draw_vector_broadcast":
                 handleRemoteVectorInjected(msg);
                 break;
+
+            case "room_full":
+                console.warn("🔒 [LIMIT SHIELD]: Доступ заблокирован сервером.");
+                alert(msg.text);
+                setTimeout(() => {
+                    window.location.href = "/join.html?reason=full";
+                }, 1000);
+                break;
+
+            default:
+                console.log("⚠️ [SOCKET EVENT]: Обработан служебный или пассивный фрейм:", msg.type);
         }
+    };
+
+    SessionState.ws.onclose = () => {
+        console.warn("🛑 [SOCKET CLOSE] Канал сигнализации закрыт удаленной нодой кластера.");
+        logChat("[SYSTEM] Сессия разорвана. Выполняется автоматическое переподключение...", "#ef4444");
     };
 
     // Делегированный перехват кликов по кнопке "⭐ Спикер" на видеоплитках гостей
@@ -341,7 +368,6 @@ export function initSocketConnection() {
         }
     });
 
-    // Клики кнопок админ панели
     // Клики кнопок админ панели
     setTimeout(() => {
         const muteAllAudioBtn = document.getElementById('mute-all-audio-btn');

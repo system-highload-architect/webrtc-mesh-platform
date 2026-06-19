@@ -8,14 +8,13 @@ import (
 
 	"webrtc-mesh-platform/internal/pkg/logger"
 	"webrtc-mesh-platform/internal/pkg/ratelimit"
-	"webrtc-mesh-platform/internal/pkg/timewheel" // Твой чистый побитовый пакет
+	"webrtc-mesh-platform/internal/pkg/timewheel"
 	"webrtc-mesh-platform/internal/pkg/trie"
 	"webrtc-mesh-platform/services/signaling-gateway/internal/domain"
 
 	"github.com/gorilla/websocket"
 )
 
-// PeerConnection инкапсулирует активный сокет и права. Лежит в app, так как зависит от websocket.Conn
 type PeerConnection struct {
 	PeerID      string
 	WS          *websocket.Conn
@@ -23,12 +22,12 @@ type PeerConnection struct {
 	IsMuted     bool
 }
 
-// RoomShard описывает изолированный сегмент ОЗУ рантайма
+// RoomShard инкапсулирует изолированный сегмент ОЗУ рантайма
 type RoomShard struct {
 	mu       sync.RWMutex
 	lruCache *trie.ReactiveLruCache
 	conns    map[string]map[string]*PeerConnection // roomID -> peerID -> connection
-	wheel    *timewheel.BitmappedTimeWheel         // Твой чистый b2b-радар
+	wheel    *timewheel.BitmappedTimeWheel         // Твой чистый побитовый радар
 }
 
 // SignalingService инкапсулирует монолитное ядро Control & User Plane плоскостей WebRTC
@@ -45,7 +44,7 @@ type SignalingService struct {
 	videoFiles  map[string]*os.File
 }
 
-// NewSignalingService инициализирует 32-сегментный распределенный менеджер
+// NewSignalingService инициализирует 32-сегментный распределенный менеджер комнат
 func NewSignalingService(log *logger.AppLogger) *SignalingService {
 	s := &SignalingService{
 		shardCount:  32,
@@ -62,7 +61,7 @@ func NewSignalingService(log *logger.AppLogger) *SignalingService {
 		s.shards[i] = &RoomShard{
 			lruCache: trie.NewReactiveLruCache(1000),
 			conns:    make(map[string]map[string]*PeerConnection),
-			wheel:    timewheel.NewBitmappedTimeWheel(), // Инициализируем инкапсулированное Битовое Колесо
+			wheel:    timewheel.NewBitmappedTimeWheel(),
 		}
 	}
 	return s
