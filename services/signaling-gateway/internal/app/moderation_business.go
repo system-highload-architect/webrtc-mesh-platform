@@ -29,9 +29,6 @@ var roomCommandRegistry = map[string]struct {
 }
 
 // HandleWsSignal управляет полным циклом сопряжения Webrtc-клиентов и контролирует лимиты PCEF
-// ИСПРАВЛЕНО (Уничтожение Race-Condition по контексту Gorilla): Полностью убрали чтение ws.UnderlyingConn().
-// Лимиты теперь извлекаются нативно за 1 наносекунду из JSON-пакета "join" на этапе парсинга фреймов!
-// FIXED: Restored classic 4-parameter aggregate function loop to avoid net.Conn casting panics
 func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.Conn, isModerator bool) {
 	idx := s.getShardIndex(roomID)
 	shard := s.shards[idx]
@@ -259,10 +256,9 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 		if incoming.Type == "chat" {
 			isTrustedSystemMessage := false
 
-			// КРИПТОГРАФИЧЕСКИЙ ФИЛЬТР ДАВИДА (Fast-Path / Slow-Path Audit):
+			// КРИПТОГРАФИЧЕСКИЙ ФИЛЬТР (Fast-Path / Slow-Path Audit):
 			// Если сообщение содержит доверенную подстроку скачивания WebM-монолитов от прокси/рекордера —
 			// мы признаем источник валидным, отключаем XSS-санитизацию и рендерим ссылку!
-			// FIXED: Granted automated payload bypass for verified infrastructure resource download references
 			if strings.Contains(incoming.Text, "download?id=") || incoming.Security != "" {
 				isTrustedSystemMessage = true
 				s.log.Info("🔒 [CRYPTO PASS] Обнаружен доверенный системный контур ссылки. XSS-санитизация отключена.")
@@ -438,9 +434,6 @@ func (s *SignalingService) HandleWsSignal(roomID, peerID string, ws *websocket.C
 				continue
 			}
 
-			// ИСПРАВЛЕНО (Оживление точечного мута микрофона): Убрали ложный continue,
-			// теперь команды точечного управления треками и рекордера ГАРАНТИРОВАННО выполняются рантаймом!
-			// FIXED: Cleared blocking statements to allow seamless execution flow for targeted track actions
 			if incoming.Command == "MUTE_AUDIO" && incoming.TargetPeerID != "" {
 				s.log.Info("[TRACK ENGINES] Точечный мут звука для пира: %s", incoming.TargetPeerID)
 				s.sendToPeerRaw(roomID, incoming.TargetPeerID, domain.WsSession{Type: "force_mute"})

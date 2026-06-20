@@ -7,8 +7,8 @@ Distributed Operator-Class Infrastructure Deployment Manual for Control, User, a
 
 ## 🛠️ PHASE 1. COLD INITIALIZATION OF GO WORKSPACES / ЭТАП 1. ХОЛОДНАЯ ИНИЦИАЛИЗАЦИЯ GO WORKSPACES (ЛОКАЛЬНЫЙ ГРАФ)
 
-* 🇺🇸 **EN:** If you are launching the project for the first time or have updated the Protobuf contracts, execute the following commands in the Git Bash terminal from the repository root for canonical module stitching:
-* 🇷🇺 **RU:** Если вы запускаете проект впервые или обновили Protobuf-контракты, выполните следующие команды в терминале Git Bash из корня репозитория для канонической сшивки модулей:
+* 🇺🇸 **EN:** if you are launching the project for the first time or have updated the Protobuf contracts, execute the following commands in the Git Bash terminal from the repository root for canonical module stitching:
+* 🇷🇺 **RU:** если вы запускаете проект впервые или обновили Protobuf-контракты, выполните следующие команды в терминале Git Bash из корня репозитория для канонической сшивки модулей:
 
 ```bash
 # 1. Entering the pb directory and initializing the Protobuf contracts module
@@ -52,8 +52,8 @@ go work sync
 
 ## 🐳 PHASE 2. ORCHESTRATION & DEPLOYMENT VIA DOCKER MESH / ЭТАП 2. ОРКЕСТРАЦИЯ И РАЗВЕРТЫВАНИЕ В ИЗОЛИРОВАННОМ DOCKER-ОКРУЖЕНИИ
 
-* 🇺🇸 **EN:** The cluster is entirely Cloud-Native. All 5 services are compiled using optimized multi-stage Dockerfiles that strip Go source code and leave minimal production binaries weighing around 15–20 MB.
-* 🇷🇺 **RU:** Кластер полностью Cloud-Native. Все 5 сервисов собираются через оптимизированные двухэтапные (`Multi-stage`) Dockerfile, отсекающие исходный код Go и оставляющие бинарники весом по 15–20 МБ.
+* 🇺🇸 **EN:** the cluster is entirely Cloud-Native. All 5 services are compiled using optimized multi-stage Dockerfiles that strip Go source code and leave minimal production binaries weighing around 15–20 MB.
+* 🇷🇺 **RU:** кластер полностью Cloud-Native. Все 5 сервисов собираются через оптимизированные двухэтапные (`Multi-stage`) Dockerfile, отсекающие исходный код Go и оставляющие бинарники весом по 15–20 МБ.
 
 ### Local launch of the signaling core (Fallback-debugging / Локальный запуск шлюза сигнализации):
 ```bash

@@ -1,8 +1,8 @@
 /**
  * handleRoomProvisioning фиксирует введенный ID комнаты и открывает финальный блок инвайт-ссылок
- * ИСПРАВЛЕНО (Живой ввод модератора): Считываем точные значения max-peers и room-duration 
+ * Считываем точные значения max-peers и room-duration 
  * и нативно вшиваем их в URL b2b-ссылки, полностью уходя от хардкодных дефолтов!
- * FIXED: Captured live client form inputs to append custom capabilities parameters into organizer token URL
+ * Captured live client form inputs to append custom capabilities parameters into organizer token URL
  */
 export function handleRoomProvisioning() {
     const roomIdEl = document.getElementById('room-id');

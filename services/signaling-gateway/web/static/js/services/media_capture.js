@@ -9,8 +9,8 @@ export async function captureLocalMedia() {
     SessionState.isAudioMuted = urlParams.get('mic') === "false";
     SessionState.isVideoMuted = urlParams.get('cam') === "false";
 
-    // ИСПРАВЛЕНО (Активация селектора Качества ТЗ): Считываем выбранное в лобби качество и выставляем constraints
-    // FIXED: Dynamically resolved hardware video resolution bounds from the incoming quality slug
+    // Считываем выбранное в лобби качество и выставляем constraints
+    // Dynamically resolved hardware video resolution bounds from the incoming quality slug
     const qualitySlug = urlParams.get('quality') || "720p";
     
     let targetWidth = 1280;

@@ -27,8 +27,8 @@ export function initSocketConnection() {
 
         initVectorDrawingEngine();
 
-        // ИСПРАВЛЕНО (Живые лимиты Control Plane): Вытаскиваем параметры из URL браузера Давида
-        // FIXED: Captured capability variables within the socket lifecycle context
+        // Вытаскиваем параметры из URL браузера Давида
+        // Captured capability variables within the socket lifecycle context
         const urlParams = new URLSearchParams(window.location.search);
         const maxPeersParam = urlParams.get('max_peers') || "100";
         const durationParam = urlParams.get('duration') || "30";

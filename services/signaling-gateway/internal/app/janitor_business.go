@@ -28,10 +28,7 @@ func (s *SignalingService) StartBackgroundJanitors(ctx context.Context) {
 	}()
 }
 
-// tickTimeWheelCascade осуществляет наносекундный поворот колеса времени Давида
-// ИСПРАВЛЕНО (Чистая инкапсуляция пакета timewheel): Вызываем метод .Tick(), полностью
-// избавив бизнес-логику от побитовой грязи и ошибок отсутствия полей TimeWheelSlots!
-// FIXED: Reengineered janitor routine to poll expired keys straight from the encapsulated timewheel package
+// tickTimeWheelCascade осуществляет наносекундный поворот колеса времени
 func (s *SignalingService) tickTimeWheelCascade() {
 	evictedCount := 0
 	now := time.Now()
@@ -52,7 +49,7 @@ func (s *SignalingService) tickTimeWheelCascade() {
 			if exists {
 				room := roomObj.(*domain.VideoRoom)
 
-				// ЖЕСТКОЕ ВЫТЕСНЕНИЕ ПО ТАЙМАУТУ: Если время сессии вышло (now >= room.UpdatedAt)
+				// ЖЕСТКОЕ ВЫТЕСНЕНИЕ ПО ТАЙМАУТУ: если время сессии вышло (now >= room.UpdatedAt)
 				// или комната просто опустела (0 пиров) — принудительно уничтожаем её и кикаем зал!
 				if len(room.Peers) == 0 || now.After(room.UpdatedAt) || now.Equal(room.UpdatedAt) {
 

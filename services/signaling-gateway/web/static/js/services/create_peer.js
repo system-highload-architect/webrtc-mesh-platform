@@ -41,9 +41,9 @@ export async function createPeerConnection(peerId, peerName, isInitiator) {
     pc.ontrack = (event) => {
         if (document.getElementById(`video-${peerId}`)) return;
 
-        // ИСПРАВЛЕНО (Фикс исчезновения участников ТЗ): Направляем плитки гостей строго в b2b-колодец видео-тайлов!
+        // Направляем плитки гостей строго в b2b-колодец видео-тайлов!
         // Теперь при активации спикера они гарантированно ужмутся в правый вертикальный сайдбар!
-        // FIXED: Re-routed remote tracks target injection container node from global grid to video-tiles pool
+        // Re-routed remote tracks target injection container node from global grid to video-tiles pool
         const tilesContainer = document.getElementById('video-tiles') || document.getElementById('video-grid');
         if (!tilesContainer) return;
 

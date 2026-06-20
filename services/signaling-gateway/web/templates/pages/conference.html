@@ -23,8 +23,8 @@
             <!-- Компонент №4: Слой Т9 инпута префиксного дерева Trie -->
             {{template "conf_chat_input" .}}
 
-            <!-- ИСПРАВЛЕНО (Переработка кнопок по ТЗ Давида): Изменили названия и ID инлайн-кнопок управления залом -->
-            <!-- FIXED: Updated native layout element identifiers to map explicit centralized audio/video blocks -->
+            <!-- Изменили названия и ID инлайн-кнопок управления залом -->
+            <!-- Updated native layout element identifiers to map explicit centralized audio/video blocks -->
             {{if .IsModerator}}
             <div id="moderator-controls" style="display: flex; gap: 4px; padding: 10px; background: #090d16; border-top: 1px solid var(--border-slate); width: 100%; box-sizing: border-box;">
                 <button class="btn-sandbox" id="mute-all-audio-btn" style="flex:1; background:#1e293b; color:#ecc94b; border:1px solid #334155; padding:6px; font-size:11px; border-radius:4px; font-family:monospace; cursor:pointer; font-weight: bold;">🎙️ Блок звука</button>

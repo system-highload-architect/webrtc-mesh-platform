@@ -28,5 +28,5 @@ sequenceDiagram
 ## 🇺🇸 ENGLISH VERSION
 The `chat-history-service` cluster entity (Port `:8083`) powers the text prediction mechanics and structures persistent telemetry streams via gRPC [2.1].
 
-* **Algorithmic Decoupling**: Offloads typing logic from the web socket signalling nodes to secure a strict bounded SLA.
-* **Zero-regex Normalization**: Matches inbound rune paths directly against pre-compiled prefix trees, ensuring predictable lookup execution times.
+* **Algorithmic Decoupling**: offloads typing logic from the web socket signalling nodes to secure a strict bounded SLA.
+* **Zero-regex Normalization**: matches inbound rune paths directly against pre-compiled prefix trees, ensuring predictable lookup execution times.

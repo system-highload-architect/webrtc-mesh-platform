@@ -41,5 +41,5 @@ sequenceDiagram
 ## 🇺🇸 ENGLISH VERSION
 The `spr-storage` distributed datastore engine (Port `:50060`) enables direct asynchronous recording of full-duplex session streams [2.1].
 
-* **Zero-Copy Disk Commits**: Bypasses heavy JSON string structures by piping raw bytes arrays straight into system filesystem blocks via gRPC streams.
-* **Accept-Ranges Continuity**: Serves archived containers back to the edge proxy cluster layer, enabling sub-millisecond video timeline seeking.
+* **Zero-Copy Disk Commits**: bypasses heavy JSON string structures by piping raw bytes arrays straight into system filesystem blocks via gRPC streams.
+* **Accept-Ranges Continuity**: serves archived containers back to the edge proxy cluster layer, enabling sub-millisecond video timeline seeking.

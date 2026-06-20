@@ -4,7 +4,7 @@ import (
 	"net"
 	"time"
 
-	"webrtc-mesh-platform/internal/chassis/config" // ПЛАТФОРМЕННОЕ ШАССИ КОНФИГУРАЦИИ
+	"webrtc-mesh-platform/internal/chassis/config" // Платформенное шасси конфигурации
 	"webrtc-mesh-platform/internal/pkg/logger"
 	"webrtc-mesh-platform/internal/pkg/shutdown"
 	"webrtc-mesh-platform/pb/gen"

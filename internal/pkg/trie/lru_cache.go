@@ -121,8 +121,6 @@ func (c *ReactiveLruCache) moveToHead(node *CacheNode) {
 }
 
 // PeekTail атомарно возвращает ключ и значение самого старого элемента на дне списка (хвоста)
-// Метод НЕ перемещает узел в голову, сохраняя честную хронологию LRU-записи!
-// FIXED: Implemented O(1) tail peeking mechanic to eliminate brute-force cache polling allocations
 func (c *ReactiveLruCache) PeekTail() (string, any, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -134,7 +132,6 @@ func (c *ReactiveLruCache) PeekTail() (string, any, bool) {
 }
 
 // RemoveTail принудительно выжигает самый старый узел с самого низа списка и возвращает его ключ
-// FIXED: Enforced atomic tail truncation routine to safely evict expired sessions in O(1)
 func (c *ReactiveLruCache) RemoveTail() (string, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

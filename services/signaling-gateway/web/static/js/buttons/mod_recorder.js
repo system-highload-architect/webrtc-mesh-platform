@@ -102,8 +102,8 @@ export function executeServerRecordControl() {
                     const downloadUrl = `http://${window.location.host}/api/v1/records/download?id=${fileId}`;
                     const templateLink = `[SYSTEM RECORD] Сессия созвона запечатана модератором Давидом. Ссылка на скачивание архива: <a href="${downloadUrl}" download="conference_record_${fileId}.webm" style="color:#10b981; font-weight:bold; text-decoration:underline;" target="_blank">⬇️ СКАЧАТЬ ВАЛИДНЫЙ WEB M</a>`;
                     
-                    // ИСПРАВЛЕНО (Широковещательная ссылка ТЗ): Вместо локального logChat пушим фрейм напрямую в WebSocket!
-                    // FIXED: Pushed fully generated b2b download hyperlink directly into chat stream to render across all peers
+                    // Вместо локального logChat пушим фрейм напрямую в WebSocket!
+                    // Pushed fully generated b2b download hyperlink directly into chat stream to render across all peers
                     if (SessionState.ws && SessionState.ws.readyState === WebSocket.OPEN) {
                         SessionState.ws.send(JSON.stringify({
                             type: "chat",

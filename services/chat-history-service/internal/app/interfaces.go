@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+
 	"webrtc-mesh-platform/services/chat-history-service/internal/domain"
 )
 

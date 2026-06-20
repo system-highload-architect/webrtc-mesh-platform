@@ -42,7 +42,7 @@ func main() {
 	gen.RegisterAuthenticationBridgeServer(grpcServer, identityHandler)
 
 	// Регистрируем второй контракт — бинарный потоковый рекордер WebM-кадров (storage.proto)
-	// FIXED: Bound double-plane domain servers over the single gRPC network port listener socket
+	// Bound double-plane domain servers over the single gRPC network port listener socket
 	gen.RegisterStorageMediaBridgeServer(grpcServer, storageService)
 
 	go func() {

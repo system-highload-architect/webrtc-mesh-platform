@@ -1,8 +1,0 @@
-service_name: "webrtc-client-emulator"
-log_level: "info"
-bind_addr: ":50058"               # Собственный порт эмулятора (для статус-интерфейсов)
-shutdown_timeout: 5
-signaling_addr: "localhost:50055"  # Адрес gRPC шлюза комнат
-chat_history_addr: "localhost:50057" # Адрес gRPC аналитического чата
-concurrent_peers: 50              # Имитируем 50 тяжелых комнат/потоков параллельно
-spawn_interval_ms: 100            # Скорость развертывания горутин

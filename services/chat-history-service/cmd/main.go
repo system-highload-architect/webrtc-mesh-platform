@@ -17,9 +17,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// ИСПРАВЛЕНО (Промышленный Паттерн Адаптер): Изолирующий слой-переходник.
-// Он на 100% реализует интерфейс app.ChatHistoryProcessor, защищая бизнес-логику от транспорта.
-// FIXED: Implemented decoupled structural adapter to completely satisfy the infrastructure interfaces
 type ChatHistoryProcessorAdapter struct {
 	engine *app.ChatHistoryEngine
 	log    *logger.AppLogger

@@ -38,5 +38,5 @@ sequenceDiagram
 ## 🇺🇸 ENGLISH VERSION
 The `cloud-routing-proxy` microservice (Port `:8080`) operates as an edge Ingress node driven by a high-availability Consistent Hash Ring layout [2.1].
 
-* **Zero-Downtime Re-routing**: Shard index evaluation assigns room IDs to live gateway target containers dynamically.
-* **REST & WS Isolation**: Decoupled HTTP routes seamlessly handshake incoming metadata packets before forwarding them into internal bridge vectors.
+* **Zero-Downtime Re-routing**: shard index evaluation assigns room IDs to live gateway target containers dynamically.
+* **REST & WS Isolation**: decoupled HTTP routes seamlessly handshake incoming metadata packets before forwarding them into internal bridge vectors.

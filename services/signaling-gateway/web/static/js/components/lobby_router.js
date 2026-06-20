@@ -20,8 +20,8 @@ export function setupLobbyRouter(roomId) {
             return;
         }
 
-        // ИСПРАВЛЕНО: namePart — это массив строк после split. Берем строго нулевой индекс!
-        // FIXED: Explicitly extracted zeroth index entry from split string array to prevent charAt TypeError
+        // namePart — это массив строк после split. Берем строго нулевой индекс!
+        // Explicitly extracted zeroth index entry from split string array to prevent charAt TypeError
         const namePart = email.split('@');
         const rawName = namePart[0];
         const formattedPeerID = rawName.charAt(0).toUpperCase() + rawName.slice(1) + "_Guest";

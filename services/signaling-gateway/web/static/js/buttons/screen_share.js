@@ -73,8 +73,8 @@ export async function stopScreenShare() {
 
     logChat(`// [MEDIA] Демонстрация остановлена. Перезапуск аппаратных треков веб-камеры...`, "#8b949e");
     
-    // ИСПРАВЛЕНО (Уничтожение бага черного экрана): Нативно, с чистого листа инициализируем камеру!
-    // FIXED: Invoked clean media capture factory reset lifecycle to explicitly eliminate blank video viewport locks
+    // Нативно, с чистого листа инициализируем камеру!
+    // Invoked clean media capture factory reset lifecycle to explicitly eliminate blank video viewport locks
     await captureLocalMedia();
 
     // Бесшовно возвращаем свежий, живой трек камеры во все активные P2P-плечи Mesh-кластера

@@ -14,8 +14,7 @@ async function routeConferenceSession() {
     const tokenStr = urlParams.get('token') || "";
     SessionState.isModerator = tokenStr.includes("david_organizer");
     
-    // ИСПРАВЛЕНО (Каскадный проброс лимитов): Извлекаем max_peers и duration из адресной строки перехода
-    // FIXED: Extracted capability limits within routing scope to forward values downstream
+    // Извлекаем max_peers и duration из адресной строки перехода
     const maxPeers = urlParams.get('max_peers') || "100";
     const duration = urlParams.get('duration') || "30";
     
@@ -49,7 +48,6 @@ async function routeConferenceSession() {
     await captureLocalMedia();
 
     // 2. Включаем полнодуплексный сокет-канал Gateway к API Gateway балансировщику
-    // ИСПРАВЛЕНО: Бесшовно пробросили считанные параметры вместимости и времени сессии!
     initSocketConnection(maxPeers, duration);
 
     // 3. Биндим чистые изолированные Event Listeners на кнопки дашборда управления треками

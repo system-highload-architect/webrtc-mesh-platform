@@ -30,5 +30,5 @@ sequenceDiagram
 ## 🇺🇸 ENGLISH VERSION
 The `auth-service` cryptographic security shield (Port `:8082`) manages machine-to-machine validation of zero-trust PKI identities via gRPC [2.1].
 
-* **Symmetric Assertion**: Compiles claims into encrypted JSON Web Tokens, letting edge nodes perform nanosecond access filtering.
-* **X.509 Conformity**: Validates binary DER encoding layers straight against system keystores to guarantee enterprise access compliance.
+* **Symmetric Assertion**: compiles claims into encrypted JSON Web Tokens, letting edge nodes perform nanosecond access filtering.
+* **X.509 Conformity**: validates binary DER encoding layers straight against system keystores to guarantee enterprise access compliance.

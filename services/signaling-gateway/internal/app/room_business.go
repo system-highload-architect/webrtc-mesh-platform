@@ -70,8 +70,6 @@ func (s *SignalingService) ExtendRoomDuration(roomID string, extendMinutes int) 
 }
 
 // FetchIceServersConfig возвращает конфигурацию Coturn TURN кластера для обхода Symmetric NAT
-// ИСПРАВЛЕНО (Синтаксис вложенных мап Go): Полностью исправили синтаксическую ошибку missing key in map literal!
-// FIXED: Corrected multi-layered inline map literal declarations to pass strict go compiler audits
 func (s *SignalingService) FetchIceServersConfig() map[string]any {
 	return map[string]any{
 		"iceServers": []map[string]any{

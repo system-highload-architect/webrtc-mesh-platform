@@ -23,7 +23,7 @@ async function initJoinPage() {
     const audioBtn = document.getElementById('lobby-audio-toggle');
     const videoBtn = document.getElementById('lobby-video-toggle');
 
-    // ИСПРАВЛЕНО (Устранение ReferenceError): Привязываем чистый изолированный метод без опечаток
+    // Привязываем чистый изолированный метод без опечаток
     if (audioBtn) audioBtn.onclick = toggleLobbyAudio;
     if (videoBtn) videoBtn.onclick = toggleLobbyVideo;
 

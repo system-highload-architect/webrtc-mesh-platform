@@ -20,9 +20,9 @@ type SubscriberProfile struct {
 }
 
 // SprStorageService инкапсулирует инфраструктурный слой NoSQL ScyllaDB (SPR)
-// ИСПРАВЛЕНО (Слияние Identity и Storage Planes): Инжектировали карту videoFiles
+// Инжектировали карту videoFiles
 // и жесткий gRPC-серверный интерфейс контракта StorageMediaBridgeServer!
-// FIXED: Superimposed high-performance media stream writer layers straight over the local database context
+// Superimposed high-performance media stream writer layers straight over the local database context
 type SprStorageService struct {
 	gen.UnimplementedStorageMediaBridgeServer // Анонимно встраиваем сервер для strict-линкера
 	mu                                        sync.RWMutex
@@ -52,9 +52,9 @@ func NewSprStorageService(log *logger.AppLogger) *SprStorageService {
 }
 
 // StreamMediaChunk принимает бинарный gRPC Client Streaming поток тяжелых WebM кадров
-// ИСПРАВЛЕНО (Уничтожение пустой эмуляции): Вместо заглушки _ = chunk.Data
+// Вместо заглушки _ = chunk.Data
 // сервис теперь честно укладывает байты на NVMe-массив встык в реальном времени!
-// FIXED: Implemented stateful client streaming pipeline to append raw bytes directly onto NVMe files
+// Implemented stateful client streaming pipeline to append raw bytes directly onto NVMe files
 func (s *SprStorageService) StreamMediaChunk(stream gen.StorageMediaBridge_StreamMediaChunkServer) error {
 	s.log.Info("🎰 [STORAGE PLANE gRPC] Входящий gRPC-канал бинарной записи успешно открыт.")
 

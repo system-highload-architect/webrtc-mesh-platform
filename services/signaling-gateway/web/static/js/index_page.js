@@ -16,8 +16,8 @@ function initIndexPage() {
         provisionBtn.onclick = handleRoomProvisioning;
     }
 
-    // ИСПРАВЛЕНО: Замыкаем контур, активируя нативное клик-копирование и редирект
-    // FIXED: Invoked decoupled clipboard link interaction pipeline listeners
+    // Замыкаем контур, активируя нативное клик-копирование и редирект
+    // Invoked decoupled clipboard link interaction pipeline listeners
     setupLinkInteraction();
 }
 

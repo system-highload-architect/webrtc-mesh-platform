@@ -12,7 +12,7 @@ let remoteArrow = null;
 
 /**
  * initVectorDrawingEngine инициализирует контур лазерной указки
- * FIXED: Reengineered drawing loop to project a single straight vector arrow that decays in 1s
+ * Reengineered drawing loop to project a single straight vector arrow that decays in 1s
  */
 export function initVectorDrawingEngine() {
     canvas = document.getElementById('vector-canvas');
@@ -38,9 +38,9 @@ export function initVectorDrawingEngine() {
         }
     }, 500);
 
-    // ХЛАДНОКРОВНЫЙ ПЕРЕХВАТ ДВОЙНОГО КЛИКА (Fullscreen Fix Давида):
+    // ХЛАДНОКРОВНЫЙ ПЕРЕХВАТ ДВОЙНОГО КЛИКА:
     // Пробиваем холст насквозь, вычисляем элемент под ним и нативно увеличиваем WebRTC-плитку!
-    // FIXED: Embedded hardware-like pointer puncture mapping to trigger full mesh node expansion hooks
+    // Embedded hardware-like pointer puncture mapping to trigger full mesh node expansion hooks
     canvas.ondblclick = (e) => {
         // Программно прячем холст на 1 наносекунду, чтобы заглянуть "под него"
         canvas.style.pointerEvents = "none";
@@ -68,8 +68,8 @@ export function initVectorDrawingEngine() {
 
     // Жесты мыши
     canvas.onmousedown = (e) => {
-        // ИСПРАВЛЕНО (Защита меню управления от перехвата): 
-        // Если Давид кликнул в нижней панели или зоне кнопок, холст ДОЛЖЕН пропустить клик вниз к кнопке!
+        // Защита меню управления от перехвата: 
+        // Если пользователь кликнул в нижней панели или зоне кнопок, холст должен пропустить клик вниз к кнопке!
         // Вычисляем элемент под холстом перед стартом рисования
         canvas.style.pointerEvents = "none";
         const clickedNode = document.elementFromPoint(e.clientX, e.clientY);
@@ -113,7 +113,6 @@ export function initVectorDrawingEngine() {
 
 	canvas.onmouseup = () => {
 		isDrawing = false;
-		// ИСПРАВЛЕНО (Исчезновение указки через 1 секунду):
 		// Спустя 1000мс полностью стираем локальный вектор с экрана
 		setTimeout(() => {
 			localArrow = null;

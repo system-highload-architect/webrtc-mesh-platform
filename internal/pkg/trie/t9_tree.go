@@ -56,7 +56,6 @@ func (e *T9PrefixEngine) Search(prefix string) (string, bool) {
 		return suggestion, true
 	}
 
-	// ПАТТЕРН ДАВИДА: Конвейер нормализации раскладки клавиатуры (Req. 4)
 	// Если слово не найдено, транслитерируем строку рун и делаем повторный Trie-пасс
 	transliterated := e.normalizeLayout(prefix)
 	if suggestion, found := e.searchTree(transliterated); found {

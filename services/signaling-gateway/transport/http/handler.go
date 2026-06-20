@@ -28,10 +28,6 @@ func NewHttpHandler(service app.RoomManagerEngine) *HttpHandler {
 }
 
 // HandleWebSocket v1 Эндпоинт WebSocket Сигнализации комнат и модерации
-// HandleWebSocket v1 Эндпоинт WebSocket Сигнализации комнат и модерации
-// ИСПРАВЛЕНО (Прямой проброс лимитов через контекст запроса): Извлекаем max_peers и duration из HTTP REST параметров
-// и бесшовно укладываем в потоковый Context сокета. Это гарантирует доставку без участия JS-кода!
-// FIXED: Extracted capability params from raw request query tokens and injected values into socket context
 func (h *HttpHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	roomID := r.URL.Query().Get("room")
 	peerID := r.URL.Query().Get("peer")
@@ -74,7 +70,7 @@ func (h *HttpHandler) HandleChatSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ИСПРАВЛЕНО (Уничтожение багов вывода): Нативная XSS-защита и AppSec экранирование фреймов
+	// Нативная XSS-защита и AppSec экранирование фреймов
 	// Впрыскиваем экранирование, защищая enterprise-контур от XSS-инъекций
 	sanitizedText := strings.ReplaceAll(text, "<", "&lt;")
 	sanitizedText = strings.ReplaceAll(sanitizedText, ">", "&gt;")
@@ -131,7 +127,6 @@ func (h *HttpHandler) HandleSdpMutator(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleSafeRedirect реализует b2b AppSec прокси-перехватчик внешних линков (Req. 5)
-// FIXED: Restored complete HTTP delivery layer interceptor signature
 func (h *HttpHandler) HandleSafeRedirect(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	targetParam := r.URL.Query().Get("target")

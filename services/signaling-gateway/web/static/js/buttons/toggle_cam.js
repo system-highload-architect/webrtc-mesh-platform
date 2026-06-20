@@ -23,7 +23,7 @@ export function toggleVideo() {
         btn.style.borderColor = SessionState.isVideoMuted ? "#ef4444" : "#334155";
     }
 
-    // ИСПРАВЛЕНО (Убран баг затемнения): Точечно управляем прозрачностью только своего видео-тега
+    // Точечно управляем прозрачностью только своего видео-тега
     const localVideo = document.getElementById('local-video');
     if (localVideo) {
         localVideo.style.opacity = SessionState.isVideoMuted ? "0.15" : "1";

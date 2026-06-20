@@ -60,8 +60,8 @@ export async function handleCandidate(msg) {
     if (!pc || !msg.payload) return;
 
     try {
-        // ИСПРАВЛЕНО: Нативно скармливаем payload в конструктор RTCIceCandidate
-        // FIXED: Fed the raw payload object strictly into native browser ice layer
+        // Нативно скармливаем payload в конструктор RTCIceCandidate
+        // Fed the raw payload object strictly into native browser ice layer
         await pc.addIceCandidate(new RTCIceCandidate(msg.payload));
     } catch (err) {
         console.error("[WebRTC Signaling] Крах добавления Ice Candidate:", err);

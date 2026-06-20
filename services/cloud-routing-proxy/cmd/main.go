@@ -77,10 +77,6 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// 7. Нативно взводим все b2b-маршруты через RegisterRoutes
-	// ИСПРАВЛЕНО (Уничтожение паники конфликта корня /): Полностью удалили дублирующий HandleFunc("/")!
-	// Метод RegisterRoutes сам под капотом зарегистрирует и статику, и корень, и рендеринг страниц через твой handler.go!
-	// FIXED: Removed duplicate local routing handles to prevent ServeMux collision panics
 	handler.RegisterRoutes(mux)
 
 	log.Info("🚀 Единый b2b Контур Входа развернут на http://localhost:8080")

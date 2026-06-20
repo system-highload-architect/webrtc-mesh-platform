@@ -40,5 +40,5 @@ sequenceDiagram
 ## 🇺🇸 ENGLISH VERSION
 The `signaling-gateway` core engine (Port `:8081`) translates orchestrational events into real-time WebRTC connectivity matrices [2.1].
 
-* **Thread-Safe Partitioning**: Cluster partitions room sessions into 32 isolated sharded mutex vectors (`RoomShard`), reducing resource contention.
-* **Mute States Preservation**: Dynamic room maps record active track lock variables, instantly silencing newly connecting guest entities upon joining.
+* **Thread-Safe Partitioning**: cluster partitions room sessions into 32 isolated sharded mutex vectors (`RoomShard`), reducing resource contention.
+* **Mute States Preservation**: dynamic room maps record active track lock variables, instantly silencing newly connecting guest entities upon joining.

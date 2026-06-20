@@ -3,7 +3,6 @@ package timewheel
 import "sync"
 
 // BitmappedTimeWheel реализует 320-битное колесо времени Давида на массиве uint64
-// FIXED: Completely encapsulated zero-allocation bitwise slot scheduler inside a shared internal pkg module
 type BitmappedTimeWheel struct {
 	mu      sync.RWMutex
 	slots   [5]uint64                   // 5 * 64 бита = 320 минут (покрывает 5 часов лимита)
