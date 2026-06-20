@@ -1,94 +1,109 @@
-# 🏛️ Distributed WebRTC P2P Mesh Signaling Platform with Trie-T9 Core
+# 🪐 CLEARWAY PKI WEBRTC FULL-MESH PLATFORM (OPERATOR CLASS)
 
-[RU] Данный модуль представляет собой высоконагруженную, отказоустойчивую сигнальную платформу для организации распределенных P2P (Peer-to-Peer) видеоконференций по топологии Mesh. Архитектура спроектирована на базе неблокирующих WebSockets (Go 1.26.4 workspaces) со встроенным Highload-движком Т9 автодополнения чата на базе префиксных деревьев Trie.
+Distributed high-performance operator-class software B2B videoconferencing platform. The architecture is engineered using strict separation of **Control Plane** (signaling and room orchestration), **User Plane** (direct WebRTC media streaming), and **Data Plane** (gRPC NoSQL storage, predictive T9 engines, and cryptographic payload validation).
 
-[EN] This module implements a highly concurrent, fault-tolerant signaling platform for orchestrating distributed P2P (Peer-to-Peer) video conferences utilizing a Mesh topology. The architecture is driven by non-blocking WebSockets (Go 1.26.4 workspaces) integrated with a high-throughput T9 chat autocomplete engine powered by Trie prefix trees.
+Распределенная высокопроизводительная программная b2b-платформа видеоконференцсвязи операторского класса. Архитектура построена по принципу строгого разделения плоскостей **Control Plane** (сигнализация и оркестрация комнат), **User Plane** (прямой медиа-обмен WebRTC) и **Data Plane** (gRPC NoSQL-хранилище, предикативные T9-сервисы и контур криптографической верификации).
 
 ---
 
-## 🗺️ System Topology & Cluster Architecture / Архитектурная топология системы
+## 🛠️ DEPLOYMENT & LAUNCH GUIDE / РЕГЛАМЕНТ РАЗВЕРТЫВАНИЯ
+
+> 🇺🇸 **EN:** detailed manual for cold initialization, compilation of modules via `go.work` and launching all 5 containers within isolated Docker mesh networks is aggregated here: **[LAUNCH.md](LAUNCH.md)**.
+> 
+> 🇷🇺 **RU:** подробный регламент холодной инициализации, сборки модулей `go.work` и запуска 5 контейнеров в изолированном Docker-окружении находится в техническом руководстве: **[LAUNCH.md](LAUNCH.md)**.
+> 
+> 📑 Architectural SRS overviews and component charts are tracked inside the index map: **[docs/navigation.md](docs/navigation.md)**.
+
+---
+
+## 📐 1. SYSTEM TOPOLOGY & INTERACTION CONTOURS (DATA FLOW)
+
+The cluster functions within the virtual isolated Docker network bridge `clearway-mesh-network` and aggregates 5 microservices communicating via HTTP, full-duplex WebSockets, and high-performance binary gRPC frames.
+
+Система функционирует внутри виртуальной сети Docker `clearway-mesh-network` и состоит из 5 скоординированных микросервисов, общающихся по протоколам HTTP, WebSockets и высокопроизводительному бинарному gRPC.
+
+### 📊 Comprehensive Sequence Diagram / Подробная диаграмма последовательности вызовов
 
 ```mermaid
-graph TD
-    %% Элементы балансировки и прокси
-    Proxy[🎛️ cloud-routing-proxy / Custom Go L7 Consistent Hashing Balancer]
-    
-    %% Ноды Сигнального Кластера
-    subgraph Signaling_Cluster [Распределенный Кластер Сигнализации / Control Plane]
-        Node1[🌐 signaling-node-01 / Cap: 1000 Rooms]
-        Node2[🌐 signaling-node-02 / Cap: 1000 Rooms]
-    end
+sequenceDiagram
+    autonumber
+    actor Organizer as 👑 David (Organizer)
+    actor Employee as 📱 Employee (Guest)
+    participant Proxy as 🌐 cloud-routing-proxy (:8080)
+    participant Gateway as 🎰 signaling-gateway (:8081)
+    participant Auth as 🔒 auth-service (:8082)
+    participant Chat as 📝 chat-history-service (:8083)
+    participant Storage as 🗄️ spr-storage (:50060)
 
-    %% Наше общее Go-шасси
-    Trie_T9[🛡️ In-Memory Trie Engine / Движок Т9]
-    Batch_Logger[📊 chat-history-service / Пакетный логер]
+    %% Phase 1: Control Plane Initialization
+    Note over Organizer, Proxy: Phase 1: Control Plane Initialization
+    Organizer->>Proxy: WebSockets Init: /api/v1/ws?room=clearway_pki_session&peer=David_Moderator
+    Proxy->>Auth: gRPC: Verify PKI Token & JWT Claims Layout
+    Auth-->>Proxy: Token Validated (Role: ORGANIZER)
+    Proxy->>Gateway: Transparent L7 Reverse-Proxy onto Port :8081
 
-    %% Браузеры Участников (Mesh Topology)
-    subgraph P2P_Mesh_Network [Direct Media Plane / P2P Видео-контур]
-        PeerA[📱 Peer Alpha / Владелец комнаты]
-        PeerB[💻 Peer Beta / Active Speaker]
-        PeerC[🖥️ Peer Gamma / View Peer]
-        
-        %% ПРЯМЫЕ МЕДИА ТУННЕЛИ (P2P DTLS-SRTP ENCRYPTION)
-        PeerA <====>|P2P Media & Vector Drawing| PeerB
-        PeerB <====>|P2P Media Flow| PeerC
-        PeerC <====>|P2P Media Flow| PeerA
-    end
+    %% Phase 2: PCEF Calibration
+    Note over Gateway: PCEF Capacity Control Engine
+    Gateway->>Gateway: Lazy allocation of VideoRoom within Shard LRU Cache
+    Organizer->>Gateway: WS Session Frame: {"type":"join", "record_id":"100", "text":"30"}
+    Gateway->>Gateway: BitmappedTimeWheel Re-Calibration (MaxPeers: 100 | TTL: 30 Min)
+    Gateway-->>Organizer: WS Transmit: {"type":"welcome", "participants": []}
 
-    %% Входной трафик и Умная Маршрутизация
-    PeerA -->|1. WS Connect| Proxy
-    PeerB -->|1. WS Connect| Proxy
-    PeerC -->|1. WS Connect| Proxy
-    
-    Proxy -->|2. Consistent Hashing Route by RoomID| Node1
-    Proxy -->|2. Consistent Hashing Route by RoomID| Node2
+    %% Phase 3: Guest Entry & Full-Mesh Peer Pairing
+    Note over Employee, Gateway: Phase 3: Peer Connection Pairing Pipeline
+    Employee->>Proxy: WebSockets Init: /api/v1/ws?room=clearway_pki_session&peer=Konstantin_Guest
+    Proxy->>Gateway: Transparent L7 Reverse-Proxy onto Port :8081
+    Gateway->>Gateway: PCEF Capacity Guard Check (Current Connections < 100)
+    Gateway-->>Employee: WS Transmit: {"type":"welcome", "participants": [{"id":"David_Moderator"}]}
+    Gateway-->>Organizer: WS Transmit: {"type":"peer-joined", "peer_id":"Konstantin_Guest"}
 
-    %% Интеграция внутренних сервисов Go
-    Node1 <-->|3. Т9 Наносекундный поиск O K| Trie_T9
-    Node1 -->|4. Асинхронный пуш CDR чата| Batch_Logger
-    
-    style Proxy fill:#4a5568,stroke:#2d3748,stroke-width:2px,color:#fff
-    style Node1 fill:#2b6cb0,stroke:#1a365d,stroke-width:2px,color:#fff
-    style Node2 fill:#2b6cb0,stroke:#1a365d,stroke-width:2px,color:#fff
-    style Trie_T9 fill:#2b6cb0,stroke:#1a365d,stroke-width:2px,color:#fff
-    style Batch_Logger fill:#2b6cb0,stroke:#1a365d,stroke-width:2px,color:#fff
-    style PeerA fill:#2f855a,stroke:#22543d,stroke-width:2px,color:#fff
-    style PeerB fill:#2f855a,stroke:#22543d,stroke-width:2px,color:#fff
-    style PeerC fill:#2f855a,stroke:#22543d,stroke-width:2px,color:#fff
+    %% WebRTC SDP Offer Exchange (Deep Copy json.RawMessage)
+    Employee->>Gateway: WS Signal: {"type":"offer", "target_id":"David_Moderator", "payload": {...}}
+    Gateway->>Gateway: Atomic deep-copy allocation of payload bytes in memory heap
+    Gateway-->>Organizer: WS Relaying: {"type":"offer", "sender_id":"Konstantin_Guest", "payload": {...}}
+    Note over Organizer, Employee: User Plane Established (Direct P2P Media Streams Rendered)
+
+    %% Phase 4: Data Plane Operations (Chat & T9)
+    Note over Organizer, Chat: Predictive T9 gRPC Engine
+    Organizer->>Proxy: Keyboard Input "pr" inside UI chat field
+    Proxy->>Chat: gRPC Call: QueryT9Autocomplete({"prefix": "пр"})
+    Chat-->>Proxy: Return Spec: {"suggestion": "привет", "is_found": true}
+    Proxy-->>Organizer: HTTP Response: "привет" (UI Autocomplete Injected)
+
+    Organizer->>Proxy: HTTP GET /api/v1/chat/send?text=привет
+    Proxy->>Gateway: L7 REST Proxy to target signaling cluster shard node
+    Gateway->>Gateway: Personal CAS Lock-Free Rate-Limiter evaluation (< 300ms)
+    Gateway->>Gateway: Unconditional XSS escape filtering (< -> &lt;)
+    Gateway-->>Proxy: HTTP Response: 200 OK SUCCESS
+    Gateway-->>Employee: WS Transmit: {"type":"chat_broadcast", "sender_id":"David_Moderator", "text":"привет"}
+
+    %% Phase 5: NVMe Recording Stream Sealing & HMAC Pass Bypass
+    Note over Organizer, Storage: Phase 5: NVMe Stream Sealing & Download Bypass
+    Organizer->>Proxy: HTTP POST /api/v1/records/upload?id=rec_1781958
+    Proxy->>Storage: gRPC: StreamMediaChunk (Client Streaming of 64KB video chunks)
+    Storage->>Storage: Committing raw binary webm to NVMe volume block (spr-nosql-data)
+    Storage-->>Proxy: gRPC Stream Sealed: SUCCESS Response
+    Proxy-->>Organizer: HTTP Response: UPLOAD_SUCCESS
+
+    Organizer->>Gateway: WS Control Frame: {"type":"control_frame", "command":"STOP_RECORD"}
+    Gateway->>Gateway: Closing local video record OS descriptors
+    Gateway->>Gateway: Computing HMAC-SHA256 signature of "SYSTEM_SECURITY_BYPASS" token
+    Gateway-->>Organizer: WS (AppSec Bypass): {"type":"chat_broadcast", "sender_id":"SYSTEM_SECURITY", "security":"hmac_hash", "text":"HTML_Link"}
+    Gateway-->>Employee: WS (AppSec Bypass): {"type":"chat_broadcast", "sender_id":"SYSTEM_SECURITY", "security":"hmac_hash", "text":"HTML_Link"}
 ```
 
 ---
 
-## 📋 Technical Requirements Specification (SRS) / Техническое ТЗ проекта
+## 🎰 2. CORE TECHNOLOGICAL CONTOURS / КЛЮЧЕВЫЕ ТЕХНОЛОГИЧЕСКИЕ КОНТУРЫ
 
-### 1. Custom L7 Load Balancer & Consistent Hashing / Умная балансировка кластера (Req. 1)
-* **[RU]** Для горизонтального масштабирования платформы разработан кастомный балансировщик **`cloud-routing-proxy`** на чистом Go. Вместо тяжелого Nginx он использует алгоритм **Последовательного хэширования (Consistent Hashing с виртуальными узлами)**. Трафик участников конкретной комнаты жестко изолируется и маршрутизируется на одну целевую ноду сигнализации по хэшу `RoomID` [🧠]. Предельный лимит комнат на ноду (например, 1000) жестко регулируется через `config.yaml` [🧠]. При перегрузке балансировщик динамически перераспределяет входящие сессии на свободные инстансы кластера [🧠].
-* **[EN]** For horizontal scaling, a custom **`cloud-routing-proxy`** Layer 7 load balancer is written in pure Go. Replacing standard Nginx overhead, it deploys a **Consistent Hashing algorithm with virtual nodes**. Client websocket traffic for any explicit room is strictly bound and routed to a single signaling node based on the hashed `RoomID` key, ensuring zero cross-node synchronization latency. Hard room capacity thresholds per node (e.g., 1000) are governed via `config.yaml`.
+### 🎰 2.1 PCEF Capacity Subsystem & Bitmapped Time Wheel
+* 🇺🇸 **EN:** to strictly safeguard the signaling gateway's RAM from OOM attacks and heavy room overflows, a thread-safe **`BitmappedTimeWheel`** scheduler is deployed. The 300-minute time wheel is packed into a compact array of `slots [5]uint64` (320 bits). Setting a bit to `1` takes exactly 1 CPU cycle via bitwise OR: `tw.slots[wordIdx] |= (1 << bitIdx)`. When a pause (`SET_PAUSE`) is triggered, the room metadata is evacuated to a security buffer slot for 5 hours. Upon resumption (`RESUME_CONFERENCE`), the janitor compute microsecond prostration delta via `time.Since(room.CreatedAt)`, adjusting the deadline timestamp to protect user mesh sessions.
+* 🇷🇺 **RU:** для жесткой защиты оперативной памяти шлюза сигнализации от атак переполнения (DoS) и утечек (OOM) развернут планировщик **`BitmappedTimeWheel`**: 300-минутное кольцо времени спроектировано в виде компактного массива `slots [5]uint64` (320 бит). Взвод бита в положение `1` выполняется за 1 такт процессора через побитовое ИЛИ: `tw.slots[wordIdx] |= (1 << bitIdx)`. При активации команды `SET_PAUSE` комната выметается из текущего минутного слота и эвакуируется в страховую 300-ю ячейку на 5 часов. При возобновлении (`RESUME_CONFERENCE`) Janitor-демон вычисляет чистый простой сессии через дельту `time.Since(room.CreatedAt)`, сдвигает дедлайн `room.UpdatedAt` и возвращает комнату в будущий слот Колеса Времени, полностью исключая Race Conditions.
 
-### 2. Multi-Peer Room Management & Signaling Control / Сигнальное управление комнатами (Req. 2)
-* **[RU]** Владелец комнаты инициализирует сессию, задавая временные рамки (лимит продления до 5 часов), пароль, HMAC-токен доступа и лимит участников (до 100 человек) [🧠]. Ссылка на инвайт рассылается встроенным асинхронным воркером на Email [🧠]. Диспетчеризация команд отключения микрофонов, видеопотоков, демонстраций экранов и блокировок чата осуществляется через **Управляющие WebSocket-фреймы (Control Frames)**. Шлюз проверяет статус токена модератора за время $O(1)$ в оперативной памяти и веерно рассылает сигнальную команду участникам сессии, принудительно мутируя медиа-дорожки на стороне WebRTC API их браузеров [🧠].
-* **[EN]** The room owner provisions a session by defining explicit time constraints (extension caps up to 5 hours), passphrases, HMAC access tokens, and peer volume limits (up to 100 clients). Invite URLs are dispatched via automated asynchronous email workers. Dispatching of mute/unmute commands, video track toggles, screen-share permissions, and chat bans is driven via **WebSocket Control Frames** validated within $O(1)$ complexity in RAM.
+### 🛡️ 2.2 AppSec Chat Pipeline & Cryptographic HMAC Bypass
+* 🇺🇸 **EN:** chat transactions are secured via a dual-path pipeline. The **Slow-Path** handles untrusted client traffic: messages are sliced to 1000 characters maximum, HTML tokens are sanitized (`<` and `>` replaced via `&lt;` / `&gt;`), and high-frequency flood is negated via a Lock-Free CAS rate limiter (300ms slot within `PeerSession`). The **Fast-Path** context handles trusted system infrastructure records payloads: downloadable links are signed via **HMAC-SHA256** using a symmetric secret key. When traversing the gateway socket loop, the signature is evaluated via `hmac.Equal`. Valid tags bypass XSS filters, allowing native HTML link execution inside browser layout trees without rendering `undefined` states.
+* 🇷🇺 **RU:** контур чата защищен по двухмагистральной b2b-схеме. **Slow-Path** обрабатывает пользовательский трафик: сообщения обрезаются до 1000 символов, HTML-теги санитизируются в `&lt;` и `&gt;`, а флуд блокируется Lock-Free CAS ограничением частоты (лимит 300мс внутри `PeerSession`). **Fast-Path** контур обрабатывает инфраструктурные сообщения: ссылки подписываются сервером через **HMAC-SHA256** от секретной константы. При проходе через сокет-цикл шлюз сигнализации сверяет подпись токена `incoming.Security` через `hmac.Equal`. При успешном крипто-проходе **XSS-фильтр отключается**, предотвращая появление ошибок `undefined` и экранирование тегов при рендеринге HTML в UI.
 
-### 3. P2P Mesh Media Plane & Smart UX/UI layouts / Медиа-контур и умный интерфейс (Req. 3)
-* **[RU]** Видеотрафик циркулирует строго **напрямую между браузерами по зашифрованным DTLS-SRTP туннелям (Mesh)**, освобождая сервер от нагрузки на транскодирование. На уровне сигнального протокола SDP поддерживается:
-  * **Режим Спикера (Active Speaker Detection):** динамическое увеличение окна говорящего участника на 2/3 экрана на основе метаданных аудио-активности VAD, сдвигая остальных участников в правый пролистываемый блок [🧠].
-  * **Коллаборативное Рисование:** передача векторных координат линий и стрелок поверх окна демонстрации экрана в реальном времени.
-  * **SDP Мутация & Quality Auto-Scaling:** принудительное шумоподавление (`noiseSuppression`) и динамический даунгрейд разрешения потоков с 1080p до 360p для пассивных участников при перегрузке каналов связи [🧠].
-* **[EN]** Media streams circulate strictly **peer-to-peer via encrypted DTLS-SRTP tunnels (Mesh topology)**. At the signaling SDP layer, the platform enforces:
-  * **Active Speaker Detection:** dynamic peer layout expansion up to 2/3 of the workspace based on real-time VAD telemetry, shifting passive streams into a scrollable right panel.
-  * **Collaborative Drawing:** real-time routing of vector coordinate streams for arrows and lines over active screen shares.
-  * **SDP Mutation & Quality Auto-Scaling:** server-enforced noise suppression and dynamic resolution downgrades (from 1080p to 360p) for passive viewers under intense network jitter constraints.
-
-### 4. Reactive Cache Eviction & Idle State Backoff / Каскадный кэш и Тайм-ауты (Req. 4)
-* **[RU]** Управление комнатами в RAM памяти ноды переведено на кастомный **Reactive LRU Cache с каскадным сжатием хвоста (Tail-to-Head Cascade Eviction)** [0.1.1, 🧠]. Если в комнате нет пользователей более 30 минут, кэш лениво за время $O(1)$ вычищает сессию из памяти с принудительным вызовом `runtime.GC()` [🧠]. 
-* **[RU]** Если в комнате нет активности 30 минут при живых участниках, активируется **Воркер оповещений с Экспоненциальным Бэкоффом (Exponential Backoff Janitor)** [🧠]. Он 3–5 раз шлет модератору предупреждающий WebSocket-фрейм `STIMULUS_ALERT`. При отсутствии реакции комната принудительно закрывается [🧠]. В режиме **Паузы** микрофоны и камеры блокируются, а трансляция экрана снижает фреймрейт до 1 кадра в 5 секунд (**Muted Keyframes**) для 95% экономии трафика сервера, а запись сессии на клиенте автоматически ставится на паузу [🧠].
-* **[EN]** Memory management inside each signaling node is governed by a **Reactive LRU Cache featuring dynamic Cascade Eviction** [0.1.1, 🧠]. If a room remains empty for 30 minutes, the cache lazily evicts the state within $O(1)$ limits followed by an explicit `runtime.GC()` execution.
-* **[EN]** If a session remains idle for 30 minutes while clients are attached, an **Exponential Backoff Janitor Worker** is triggered. It fires warning websocket frames `STIMULUS_ALERT` to the moderator 3-5 times under exponential time steps before forcing room termination. Under a **Pause state**, mic/camera tracks are blocked, screen-share streams drop to 1 frame per 5 seconds (**Muted Keyframes**) ensuring a 95% bandwidth drop, and client-side recorders are automatically paused.
-
-### 5. Secure Chat Stream & Trie-T9 Core / Безопасный чат и Движок Т9 (Req. 5)
-* **[RU]** Текстовый мессенджер конференции защищен от XSS-атак посредством серверного экранирования HTML-тегов и регулярной чистки `<script>` векторов. Лимитирование флуда запросов выполняется за 9 наносекунд через **Lock-Free CAS маркерную корзину**. Пограничный размер сообщения строго валидируется сервером на отсечку в 1000 символов [🧠]. Переход по внешним ссылкам блокируется промежуточной b2b-страницей предупреждения (Safe Transfer Page) со снятием ответственности [🧠].
-* **[RU]** Интеллектуальный движок Т9 осуществляет наносекундный поиск совпадений по **Префиксному дерево (Trie)** за константное время $O(K)$ [🧠]. Дополнительно внедрен **Конвейер нормализации раскладки (Keyboard Layout Translit)**: если префикс не найден в дереве, сервер за один проход по хэш-мапе рун преобразует ошибочный латинский ввод (`ghbdtn`) в каноничный кириллический (`привет`) и совершает повторную Trie-инвалидацию, выводя плейсхолдер автодополнения по кнопке `Tab`.
-* **[EN]** The chat system is immune to XSS vectors due to server-enforced HTML escaping. Flood protection is driven within 9ns via a **Lock-Free CAS Token Bucket** bounded at a 1000-rune threshold. Transfer URLs are intercepted by an isolated Safe Transfer Page.
-* **[EN]** The T9 engine executes predictive lookпов over an In-Memory Trie Tree within fixed $O(K)$ limits. It features an integrated Keyboard Layout Translit Pipeline mapping incorrect layout inputs (e.g., ghbdtn to привет via flat rune hash tables) prior to entering the second Trie pass, returning autocomplete placeholders triggered by the Tab key.
-
----
+### 🗄️ 2.3 High-Performance Data Plane & Storage Cascade
+* 🇺🇸 **EN:** video chunks are sliced down to 64KB buffers on the client side and pushed via HTTP POST requests to the L7 Gateway. The proxy instantly passes frames via a gRPC stream context directly into `spr-storage` (Port `:50060`) with zero куча allocations. Monolithic WebM binaries are written straight into the persistent docker volume `spr-nosql-data`. File download is managed by a fail-safe multi-path locator layout `HandleRecordsDownload`, unlocking byte-accurate `Accept-Ranges` stream rendering inside browser containers.
+* 🇷🇺 **RU**: кадры видеозаписи нарезаются на чанки по 64 КБ на стороне клиента и летят HTTP POST запросом в прокси. Прокси-сервер по gRPC-каналу транслирует их в spr-storage на порт :50060 с нулевым выделением памяти в куче (Zero-Allocation). Монолиты WebM сохраняются на персистентный разделяемый Docker-том spr-nosql-data. Скачивание реализовано через каскадный мульти-путевой локатор HandleRecordsDownload с поддержкой Range-Streaming побайтовой перемотки видео в браузере.

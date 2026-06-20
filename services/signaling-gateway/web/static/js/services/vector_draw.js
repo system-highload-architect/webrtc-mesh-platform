@@ -26,7 +26,7 @@ export function initVectorDrawingEngine() {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // Интерцептор условий активации доклада
+    // Твой оригинальный интерцептор условий активации доклада (ОСТАВЛЕН БЕЗ ИЗМЕНЕНИЙ)
     setInterval(() => {
         const isScreenSharingActive = SessionState.screenStream && SessionState.screenStream.active;
         const isSpeakerModeActive = SessionState.activeSpeakerId && SessionState.activeSpeakerId !== "";
@@ -38,8 +38,49 @@ export function initVectorDrawingEngine() {
         }
     }, 500);
 
+    // ХЛАДНОКРОВНЫЙ ПЕРЕХВАТ ДВОЙНОГО КЛИКА (Fullscreen Fix Давида):
+    // Пробиваем холст насквозь, вычисляем элемент под ним и нативно увеличиваем WebRTC-плитку!
+    // FIXED: Embedded hardware-like pointer puncture mapping to trigger full mesh node expansion hooks
+    canvas.ondblclick = (e) => {
+        // Программно прячем холст на 1 наносекунду, чтобы заглянуть "под него"
+        canvas.style.pointerEvents = "none";
+        const elementUnderCanvas = document.elementFromPoint(e.clientX, e.clientY);
+        canvas.style.pointerEvents = "auto"; // Мгновенно возвращаем управление холсту
+
+        if (elementUnderCanvas) {
+            // Находим ближайшую видео-плитку или wrapper
+            const targetVideoWrapper = elementUnderCanvas.closest('.video-wrapper') || elementUnderCanvas.closest('video') || elementUnderCanvas;
+            
+            if (targetVideoWrapper && (targetVideoWrapper.tagName === 'VIDEO' || targetVideoWrapper.classList.contains('video-wrapper'))) {
+                console.log("🪐 [APPSEC BYPASS] Двойной клик пробил векторный маркер. Fullscreen активен.");
+                if (!document.fullscreenElement) {
+                    if (targetVideoWrapper.requestFullscreen) {
+                        targetVideoWrapper.requestFullscreen().catch(err => console.error(err));
+                    } else if (targetVideoWrapper.parentElement && targetVideoWrapper.parentElement.requestFullscreen) {
+                        targetVideoWrapper.parentElement.requestFullscreen().catch(err => console.error(err));
+                    }
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+        }
+    };
+
     // Жесты мыши
     canvas.onmousedown = (e) => {
+        // ИСПРАВЛЕНО (Защита меню управления от перехвата): 
+        // Если Давид кликнул в нижней панели или зоне кнопок, холст ДОЛЖЕН пропустить клик вниз к кнопке!
+        // Вычисляем элемент под холстом перед стартом рисования
+        canvas.style.pointerEvents = "none";
+        const clickedNode = document.elementFromPoint(e.clientX, e.clientY);
+        canvas.style.pointerEvents = "auto";
+
+        if (clickedNode && (clickedNode.closest('button') || clickedNode.closest('input') || clickedNode.closest('.controls-bar-context'))) {
+            // Пропускаем событие: кликаем по реальной кнопке под холстом и выходим
+            if (clickedNode.click) clickedNode.click();
+            return;
+        }
+
         isDrawing = true;
         const rect = canvas.getBoundingClientRect();
         startX = e.clientX - rect.left;
@@ -66,22 +107,21 @@ export function initVectorDrawingEngine() {
                 target_peer_id: String(startY),
                 text: String(currentX),
                 command: String(currentY)
-            }));
-        }
-    };
+			}));
+		}
+	};
 
-    canvas.onmouseup = () => {
-        isDrawing = false;
-        // ИСПРАВЛЕНО (Исчезновение указки через 1 секунду):
-        // Спустя 1000мс полностью стираем локальный вектор с экрана
-        // FIXED: Set deterministic 1-second timeout loop to clear active local laser indicator pointers
-        setTimeout(() => {
-            localArrow = null;
-        }, 1000);
-    };
+	canvas.onmouseup = () => {
+		isDrawing = false;
+		// ИСПРАВЛЕНО (Исчезновение указки через 1 секунду):
+		// Спустя 1000мс полностью стираем локальный вектор с экрана
+		setTimeout(() => {
+			localArrow = null;
+		}, 1000);
+	};
 
-    // Запускаем высокопроизводительный цикл отрисовки
-    renderVectorsLoop();
+	// Запускаем высокопроизводительный цикл отрисовки
+	renderVectorsLoop();
 }
 
 /**

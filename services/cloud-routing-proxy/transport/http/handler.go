@@ -49,7 +49,7 @@ func (h *HttpHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/records/download", h.HandleRecordsDownload)
 	mux.HandleFunc("/safe-transfer", h.HandleSafeTransfer)
 
-	defaultSignalingURL, _ := url.Parse("http://localhost:8081")
+	defaultSignalingURL, _ := url.Parse("http://signaling-gateway:8081")
 	signalingProxy := httputil.NewSingleHostReverseProxy(defaultSignalingURL)
 
 	mux.HandleFunc("/api/v1/chat/send", func(w http.ResponseWriter, r *http.Request) { signalingProxy.ServeHTTP(w, r) })
@@ -197,6 +197,7 @@ func (h *HttpHandler) HandleUploadRecord(w http.ResponseWriter, r *http.Request)
 	_, _ = w.Write([]byte("UPLOAD_SUCCESS"))
 }
 
+// HandleRecordsDownload транслирует медиа-файлы из NoSQL персистентного каталога
 func (h *HttpHandler) HandleRecordsDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	recordID := r.URL.Query().Get("id")
@@ -205,10 +206,29 @@ func (h *HttpHandler) HandleRecordsDownload(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Вычисляем путь к файлу внутри изолированной папки spr-storage
-	filePath := filepath.Join("data", "scylladb_spr_emulation", "records", fmt.Sprintf("%s.webm", recordID))
-	file, err := os.Open(filePath)
+	fileName := fmt.Sprintf("%s.webm", recordID)
+
+	// Список b2b-путей для каскадного поиска файла внутри Docker-тома
+	searchPaths := []string{
+		filepath.Join("data", "scylladb_spr_emulation", "records", fileName),  // С подпапкой records
+		filepath.Join("data", "scylladb_spr_emulation", fileName),             // Напрямую в корне тома
+		filepath.Join("/", "app", "data", "scylladb_spr_emulation", fileName), // Абсолютный путь Docker
+	}
+
+	var file *os.File
+	var err error
+
+	// Перебираем пути, пока не найдем физический файл на NVMe-массиве
+	for _, path := range searchPaths {
+		file, err = os.Open(path)
+		if err == nil {
+			break
+		}
+	}
+
+	// Если файл не найден ни по одному пути, выдаем безопасный AppSec 404
 	if err != nil {
+		h.log.Error("🗑️ [DOWNLOAD ERROR] Файл записи %s не найден ни по одному из b2b-путей.", recordID)
 		http.Error(w, "🔒 [AppSec Proxy Guard]: Файл записи не найден в ScyllaDB/SPR keyspace.", http.StatusNotFound)
 		return
 	}

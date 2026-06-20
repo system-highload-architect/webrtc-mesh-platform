@@ -115,7 +115,7 @@ export function initSocketConnection() {
                 removePeerVideo(leftID);
                 delete SessionState.peerNames[leftID];
                 break;
-// 1
+
             case "chat_broadcast":
             case "chat":
                 logChat(`${msg.sender_id || msg.sender_name}: ${msg.text}`);
@@ -148,9 +148,6 @@ export function initSocketConnection() {
                 toggleUiFreeze(false);
                 break;
                 
-            // ИСПРАВЛЕНО (Безвозвратный лок микрофонов зала ТЗ Давида):
-            // Насильно гасим звук рядового сотрудника и намертво блокируем кнопку включения в футере!
-            // FIXED: Activated guest audio track lock context and disabled footer button node clicks
            case "force_mute_audio_lock":
                 if (SessionState.isModerator) break; // Защита Ведущего
                 logChat("[ORCHESTRATION] Ведущий ограничил ваш микрофон (Режим доклада). Включение запрещено.", "#ef4444");
@@ -224,7 +221,7 @@ export function initSocketConnection() {
                 const localVideoRestore = document.getElementById('local-video');
                 if (localVideoRestore) localVideoRestore.style.opacity = "1";
                 break;
-// 2
+
         case "focus_speaker":
                 SessionState.activeSpeakerId = msg.target_peer_id;
                 logChat(`// [ORCHESTRATION] Внимание зала зафиксировано на спикере: ${msg.target_peer_id}. Ему выдан иммунитет от мьюта.`, "#ecc94b");
