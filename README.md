@@ -8,9 +8,9 @@ Distributed high-performance operator-class software B2B videoconferencing platf
 
 ## 🛠️ DEPLOYMENT & LAUNCH GUIDE / РЕГЛАМЕНТ РАЗВЕРТЫВАНИЯ
 
-> 🇺🇸 **EN:** detailed manual for cold initialization, compilation of modules via `go.work` and launching all 5 containers within isolated Docker mesh networks is aggregated here: **[LAUNCH.md](LAUNCH.md)**.
+> 🇺🇸 **EN:** detailed manual for cold initialization, compilation of modules via `go.work` and launching all 5 containers within isolated Docker mesh networks is aggregated here: **[LAUNCH.md](launch.md)**.
 > 
-> 🇷🇺 **RU:** подробный регламент холодной инициализации, сборки модулей `go.work` и запуска 5 контейнеров в изолированном Docker-окружении находится в техническом руководстве: **[LAUNCH.md](LAUNCH.md)**.
+> 🇷🇺 **RU:** подробный регламент холодной инициализации, сборки модулей `go.work` и запуска 5 контейнеров в изолированном Docker-окружении находится в техническом руководстве: **[LAUNCH.md](launch.md)**.
 > 
 > 📑 Architectural SRS overviews and component charts are tracked inside the index map: **[docs/navigation.md](docs/navigation.md)**.
 
